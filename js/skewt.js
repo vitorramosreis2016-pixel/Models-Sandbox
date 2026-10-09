@@ -1,7 +1,7 @@
 // MOTOR GRÁFICO E TERMOCINÂMICO AVANÇADO - ESTILO SHARPPY PRO
 
 let skewtPlot = null;
-const niveisPressao =;
+const niveisPressao = [ 1000, 850, 700, 500, 300, 100 ];
 
 function transformarParaSkew(t, p) {
     // Inclina o eixo X em 45 graus usando o logaritmo da pressão
