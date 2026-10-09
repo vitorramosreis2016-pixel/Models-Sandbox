@@ -81,14 +81,31 @@
             <!-- CONTEÚDO DE CADA ABA -->
             <div class="tab-content-container">
                 
-                <!-- ABA 1: SKEW-T LOG-P -->
-                <section id="skewt-tab" class="tab-section active">
-                    <h3>Gráfico Skew-T Log-P & Upper-Air Sounding</h3>
-                    <div id="skewt-chart-container">
-                        <!-- O JavaScript (D3.js/Plotly) vai renderizar o gráfico aqui dentro -->
-                        <p class="placeholder-text">[ Espaço reservado para o Gráfico Skew-T Dinâmico ]</p>
-                    </div>
-                </section>
+                <!-- ABA 1: SKEW-T LOG-P (ESTILO SHARPPY) -->
+<section id="skewt-tab" class="tab-section active">
+    <h3>Análise de Sondagem Atmosférica (SHARPpy Pro)</h3>
+    <div style="display: flex; gap: 20px; width: 100%;">
+        <!-- O Gráfico Científico -->
+        <div id="skewt-chart" style="flex: 2; height: 550px; background: #121218; border: 1px solid #2d2d3d; border-radius: 6px;"></div>
+        
+        <!-- O Painel de Parâmetros Convectivos do SHARPpy -->
+        <div id="sharppy-panel" style="flex: 1; background: #161622; border: 1px solid #2d2d3d; border-radius: 6px; padding: 15px; font-family: monospace;">
+            <h4 style="color: #38bdf8; border-bottom: 1px dashed #3b3b54; padding-bottom: 5px; margin-bottom: 10px;">📊 ÍNDICES DE SEVERIDADE</h4>
+            <div style="display: flex; flex-direction: column; gap: 10px; color: #cbd5e1; font-size: 0.9rem;">
+                <p>STP (Significant Tornado): <span id="idx-stp" style="font-weight: bold; color: #ff00ff;">0.0</span></p>
+                <p>SCP (Supercell Composite): <span id="idx-scp" style="font-weight: bold; color: #e69d5e;">0.0</span></p>
+                <p>EHI (Energy Helicity Index): <span id="idx-ehi" style="font-weight: bold; color: #f7e379;">0.0</span></p>
+                <hr style="border: 1px dashed #2d2d3d;">
+                <h4 style="color: #38bdf8;">💨 PERFIL DE VENTOS (PER ALTITUDE)</h4>
+                <p>100 hPa (Alta Troposfera): <span id="v-100">0 kt</span></p>
+                <p>300 hPa (Corrente de Jato): <span id="v-300">0 kt</span></p>
+                <p>500 hPa (Níveis Médios): <span id="v-500">0 kt</span></p>
+                <p>700 hPa (Baixos Níveis): <span id="v-700">0 kt</span></p>
+                <p>850 hPa (Jato de Baixos Níveis): <span id="v-850">0 kt</span></p>
+            </div>
+        </div>
+    </div>
+</section>
 
                                 <!-- ABA 2: CONVECTIVE OUTLOOK -->
                 <section id="convective-tab" class="tab-section">
