@@ -211,3 +211,73 @@ header p {
     text-align: center;
     padding: 20px;
 }
+
+/* EXTENSÃO DE ESTILOS PARA O PAINEL DE MODELOS E OUTLOOKS */
+
+.outlook-controls {
+    background-color: #161622 !important; /* Força o fundo escuro padrão */
+    border: 1px solid #2d2d3d;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+    flex-wrap: wrap; /* Garante que os menus quebrem linha em telas menores */
+}
+
+/* Estilização das caixas de seleção (Dropdowns / Selects) */
+.outlook-controls select {
+    background-color: #1e1e2f;
+    color: #e2e8f0;
+    border: 1px solid #3b3b54;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.outlook-controls select:hover {
+    border-color: #ff4a4a; /* Borda acende em vermelho ao passar o mouse */
+    background-color: #252538;
+}
+
+.outlook-controls select:focus {
+    border-color: #ff4a4a;
+    box-shadow: 0 0 0 2px rgba(255, 74, 74, 0.2);
+}
+
+/* Estilização dos grupos de modelos dentro do menu drop-down */
+.outlook-controls select optgroup {
+    background-color: #161622;
+    color: #38bdf8; /* Títulos dos grupos (Mesoescala, Globais) ficam em azul */
+    font-weight: bold;
+    font-style: normal;
+}
+
+.outlook-controls select option {
+    background-color: #1e1e2f;
+    color: #e2e8f0; /* Opções internas voltam ao texto claro normal */
+    font-weight: normal;
+}
+
+/* Estilização das caixas de Pop-up que aparecem ao clicar no mapa mundi */
+.leaflet-popup-content-wrapper {
+    background-color: #161622 !important;
+    color: #e2e8f0 !important;
+    border: 1px solid #3b3b54;
+    border-radius: 6px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.leaflet-popup-tip {
+    background-color: #161622 !important;
+    border: 1px solid #3b3b54;
+}
+
+.leaflet-popup-content b {
+    color: #38bdf8;
+}
+
+.leaflet-popup-content hr {
+    border: 1px dashed #2d2d3d;
+    margin: 8px 0;
+}
