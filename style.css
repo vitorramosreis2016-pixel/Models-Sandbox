@@ -1,0 +1,213 @@
+/* EXTENSÃO DE ESTILOS GERAIS - RENDERIZAÇÃO ESTILO SPC DARK MODE */
+
+/* 1. Reset de Margens e Configurações Globais */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: #0f0f12; /* Fundo grafite ultra escuro */
+    color: #e2e8f0; /* Texto claro confortável para leitura */
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 2. Cabeçalho Principal */
+header {
+    background: linear-gradient(135deg, #1a1a24, #12121a);
+    padding: 15px 25px;
+    border-bottom: 2px solid #2d2d3d;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+
+header h1 {
+    font-size: 1.6rem;
+    color: #ff4a4a; /* Destaque em tom vermelho de alerta severo */
+    letter-spacing: 0.5px;
+}
+
+header p {
+    font-size: 0.85rem;
+    color: #94a3b8;
+    margin-top: 3px;
+}
+
+/* 3. Layout Estrutural Divisório */
+.main-container {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* 4. Barra Lateral de Controles (Sliders) */
+.sidebar {
+    width: 320px;
+    background-color: #161622;
+    padding: 20px;
+    border-right: 2px solid #2d2d3d;
+    overflow-y: auto;
+}
+
+.sidebar h2 {
+    font-size: 0.95rem;
+    text-transform: uppercase;
+    color: #38bdf8; /* Azul neon meteorológico para seções */
+    margin-bottom: 15px;
+    margin-top: 15px;
+    letter-spacing: 1px;
+    border-bottom: 1px dashed #2d2d3d;
+    padding-bottom: 5px;
+}
+
+.sidebar h2:first-of-type {
+    margin-top: 0;
+}
+
+/* Configuração dos Sliders */
+.control-group {
+    margin-bottom: 18px;
+}
+
+.control-group label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    margin-bottom: 6px;
+    color: #cbd5e1;
+}
+
+.control-group label span {
+    font-weight: bold;
+    color: #00f2ff; /* Ciano de destaque para os números mutáveis */
+}
+
+.control-group input[type="range"] {
+    width: 100%;
+    accent-color: #ff4a4a; /* Barra do slider acompanha cor de alerta */
+    cursor: pointer;
+    background: #2d2d3d;
+    height: 6px;
+    border-radius: 4px;
+}
+
+/* Painel de Índices Calculados */
+.indices-panel {
+    background-color: #1e1e2f;
+    border: 1px solid #3b3b54;
+    border-radius: 6px;
+    padding: 15px;
+    margin-top: 25px;
+}
+
+.indices-panel h3 {
+    font-size: 0.9rem;
+    margin-bottom: 10px;
+    color: #e2e8f0;
+    text-align: center;
+}
+
+.indices-panel p {
+    font-size: 0.9rem;
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #262637;
+}
+
+.indices-panel p:last-child {
+    margin-bottom: 0;
+    border-bottom: none;
+}
+
+.indices-panel p span {
+    font-weight: bold;
+    color: #4ade80; /* Verde neon para exibição dos resultados numéricos */
+}
+
+/* 5. Área de Conteúdo Central (Abas e Visualização) */
+.content-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: #0a0a0d;
+}
+
+/* Menu Superior de Abas */
+.tabs-menu {
+    display: flex;
+    background-color: #12121a;
+    border-bottom: 2px solid #2d2d3d;
+    padding: 0 10px;
+}
+
+.tab-btn {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    padding: 12px 18px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-bottom: 3px solid transparent;
+}
+
+.tab-btn:hover {
+    color: #e2e8f0;
+    background-color: #1c1c27;
+}
+
+.tab-btn.active {
+    color: #ff4a4a;
+    border-bottom-color: #ff4a4a;
+    background-color: #161622;
+}
+
+/* Container de Exibição do Conteúdo */
+.tab-content-container {
+    flex: 1;
+    padding: 25px;
+    overflow-y: auto;
+}
+
+/* Alternância Ocultar/Exibir seções */
+.tab-section {
+    display: none;
+    height: 100%;
+    flex-direction: column;
+}
+
+.tab-section.active {
+    display: flex;
+}
+
+.tab-section h3 {
+    font-size: 1.2rem;
+    margin-bottom: 15px;
+    color: #f1f5f9;
+}
+
+/* Caixas de Gráficos e Mapas (Placeholder temporário) */
+#skewt-chart-container, #convective-map, #rainfall-map, #fire-map, #climate-view {
+    flex: 1;
+    background-color: #121218;
+    border: 2px dashed #2d2d3d;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+}
+
+.placeholder-text {
+    color: #4b5563;
+    font-style: italic;
+    font-size: 0.95rem;
+    text-align: center;
+    padding: 20px;
+}
