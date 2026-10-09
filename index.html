@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador de Mesoanálise e Previsão Severa</title>
+    <!-- O arquivo CSS será linkado aqui futuramente -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- CABEÇALHO DO SIMULADOR -->
+    <header>
+        <h1>Painel de Previsão e Mesoanálise</h1>
+        <p>Ajuste os parâmetros atmosféricos e monte seus cenários de tempo severo.</p>
+    </header>
+
+    <!-- CONTAINER PRINCIPAL -->
+    <div class="main-container">
+        
+        <!-- COLUNA ESQUERDA: CONTROLES ATMOSFÉRICOS (SLIDERS) -->
+        <aside class="sidebar">
+            <h2>Variáveis de Superfície</h2>
+            
+            <div class="control-group">
+                <label for="temp">Temperatura (°C): <span id="val-temp">25</span></label>
+                <input type="range" id="temp" min="-10" max="45" value="25">
+            </div>
+
+            <div class="control-group">
+                <label for="dwpt">Dewpoint (°C): <span id="val-dwpt">18</span></label>
+                <input type="range" id="dwpt" min="-15" max="30" value="18">
+            </div>
+
+            <div class="control-group">
+                <label for="wind">Vento Superfície (kt): <span id="val-wind">10</span></label>
+                <input type="range" id="wind" min="0" max="60" value="10">
+            </div>
+
+            <h2>Variáveis de Altitude</h2>
+
+            <div class="control-group">
+                <label for="lapse">Lapse Rate (°C/km): <span id="val-lapse">6.5</span></label>
+                <input type="range" id="lapse" min="4" max="10" step="0.1" value="6.5">
+            </div>
+
+            <div class="control-group">
+                <label for="srw">Storm-Relative Winds (SRW - kt): <span id="val-srw">20</span></label>
+                <input type="range" id="srw" min="0" max="100" value="20">
+            </div>
+            
+            <!-- EXIBIÇÃO DE ÍNDICES CALCULADOS -->
+            <div class="indices-panel">
+                <h3>Diagnóstico Computado</h3>
+                <p>LCL: <span id="lcl-result">--</span> m</p>
+                <p>CAPE: <span id="cape-result">--</span> J/kg</p>
+                <p>CIN: <span id="cin-result">--</span> J/kg</p>
+            </div>
+        </aside>
+
+        <!-- COLUNA DIREITA: TELAS DO SISTEMA (ABAS INTERATIVAS) -->
+        <main class="content-area">
+            
+            <!-- MENU DE ABAS DE NAVEGAÇÃO -->
+            <nav class="tabs-menu">
+                <button class="tab-btn active" onclick="switchTab('skewt-tab')">📊 Skew-T / Sounding</button>
+                <button class="tab-btn" onclick="switchTab('convective-tab')">⛈️ Convective Outlook</button>
+                <button class="tab-btn" onclick="switchTab('rainfall-tab')">🌧️ Excessive Rainfall</button>
+                <button class="tab-btn" onclick="switchTab('fire-tab')">🔥 Fire / Dry Thunderstorm</button>
+                <button class="tab-btn" onclick="switchTab('climate-tab')">🌐 Climate Prediction</button>
+            </nav>
+
+            <!-- CONTEÚDO DE CADA ABA -->
+            <div class="tab-content-container">
+                
+                <!-- ABA 1: SKEW-T LOG-P -->
+                <section id="skewt-tab" class="tab-section active">
+                    <h3>Gráfico Skew-T Log-P & Upper-Air Sounding</h3>
+                    <div id="skewt-chart-container">
+                        <!-- O JavaScript (D3.js/Plotly) vai renderizar o gráfico aqui dentro -->
+                        <p class="placeholder-text">[ Espaço reservado para o Gráfico Skew-T Dinâmico ]</p>
+                    </div>
+                </section>
+
+                <!-- ABA 2: CONVECTIVE OUTLOOK -->
+                <section id="convective-tab" class="tab-section">
+                    <h3>Previsão Convectiva (SPC Style)</h3>
+                    <div id="convective-map">
+                        <p class="placeholder-text">[ Mapa interativo do Leaflet para desenhar riscos de Tornado/Granizo ]</p>
+                    </div>
+                </section>
+
+                <!-- ABA 3: EXCESSIVE RAINFALL -->
+                <section id="rainfall-tab" class="tab-section">
+                    <h3>Previsão de Chuva Excessiva e Alagamentos</h3>
+                    <div id="rainfall-map">
+                        <p class="placeholder-text">[ Mapa interativo para polígonos de precipitação extrema ]</p>
+                    </div>
+                </section>
+
+                <!-- ABA 4: FIRE RISK / DRY THUNDERSTORM -->
+                <section id="fire-tab" class="tab-section">
+                    <h3>Risco de Incêndios e Tempestades Secas</h3>
+                    <div id="fire-map">
+                        <p class="placeholder-text">[ Mapa interativo para monitoramento de áreas secas e descargas elétricas ]</p>
+                    </div>
+                </section>
+
+                <!-- ABA 5: CLIMATE PREDICTION CENTER -->
+                <section id="climate-tab" class="tab-section">
+                    <h3>Tendências de Longo Prazo (CPC)</h3>
+                    <div id="climate-view">
+                        <p class="placeholder-text">[ Ferramentas de anomalia de temperatura e precipitação para 8-14 dias ]</p>
+                    </div>
+                </section>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- SCRIPTS JAVASCRIPT EXUTEDOS EM ORDEM (Criaremos nas próximas etapas) -->
+    <script src="js/math.js"></script>
+    <script src="js/tabs.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
