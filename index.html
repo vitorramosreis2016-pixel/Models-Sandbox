@@ -82,13 +82,60 @@
                     </div>
                 </section>
 
-                <!-- ABA 2: CONVECTIVE OUTLOOK -->
+                                <!-- ABA 2: CONVECTIVE OUTLOOK -->
                 <section id="convective-tab" class="tab-section">
                     <h3>Previsão Convectiva (SPC Style)</h3>
-                    <div id="convective-map">
-                        <p class="placeholder-text">[ Mapa interativo do Leaflet para desenhar riscos de Tornado/Granizo ]</p>
+                    
+                    <!-- NOVO PAINEL DE CONTROLE DE MODELOS E OUTLOOKS -->
+                    <div class="outlook-controls" style="background: #161622; padding: 15px; margin-bottom: 15px; border-radius: 6px; display: flex; gap: 20px; align-items: center;">
+                        <div>
+                            <label style="font-weight: bold; color: #38bdf8; display: block; margin-bottom: 5px; font-size: 0.85rem;">Modo do Outlook:</label>
+                            <select id="outlook-mode" onchange="alternarModoOutlook()">
+                                <option value="manual">✏️ Desenhar Manualmente</option>
+                                <option value="auto">🤖 Gerar Automaticamente via Modelo</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label style="font-weight: bold; color: #ff4a4a; display: block; margin-bottom: 5px; font-size: 0.85rem;">Modelo Numérico:</label>
+                            <select id="model-select">
+                                <optgroup label="Alta Resolução / Curto Prazo (Mesoescala)">
+                                    <option value="HRRR">HRRR (High-Resolution Rapid Refresh)</option>
+                                    <option value="NAM">NAM (North American Mesoscale)</option>
+                                    <option value="WRF">WRF (Weather Research and Forecasting)</option>
+                                    <option value="RRFS">RRFS (Rapid Refresh Forecast System)</option>
+                                </optgroup>
+                                <optgroup label="Modelos Globais (Longo Prazo)">
+                                    <option value="GFS">GFS (Global Forecast System - EUA)</option>
+                                    <option value="ECMWF">ECMWF (Euro Model - Europa)</option>
+                                    <option value="ICON">ICON (German Model - Alemanha)</option>
+                                    <option value="UKMET">UKMET (United Kingdom Met Office)</option>
+                                </optgroup>
+                                <optgroup label="Ensembles (Probabilísticos)">
+                                    <option value="GEFS">GEFS (Global Ensemble Forecast System)</option>
+                                    <option value="EPS">EPS (ECMWF Ensemble)</option>
+                                    <option value="REFS">REFS (Regional Ensemble Forecast System)</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                        
+                        <div id="manual-tools">
+                            <label style="font-weight: bold; color: #cbd5e1; display: block; margin-bottom: 5px; font-size: 0.85rem;">Nível do Risco:</label>
+                            <select id="risk-level-select">
+                                <option value="TSTM" style="color: #c2e2be;">TSTM (Tempestade Comum)</option>
+                                <option value="MRGL" style="color: #61b36b;">MRGL (Marginal)</option>
+                                <option value="SLGT" style="color: #f7e379;">SLGT (Slight)</option>
+                                <option value="ENH" style="color: #e69d5e;">ENH (Enhanced)</option>
+                                <option value="MDT" style="color: #ca5858;">MDT (Moderate)</option>
+                                <option value="HIGH" style="color: #ff00ff;">HIGH (High Risk)</option>
+                            </select>
+                        </div>
                     </div>
+
+                    <!-- DIV ONDE O MAPA-MÚNDI REAL SERÁ INJETADO PELO OUTLOOK.JS -->
+                    <div id="convective-map" style="height: 550px; width: 100%; border: 1px solid #2d2d3d; border-radius: 6px; position: relative;"></div>
                 </section>
+
 
                 <!-- ABA 3: EXCESSIVE RAINFALL -->
                 <section id="rainfall-tab" class="tab-section">
