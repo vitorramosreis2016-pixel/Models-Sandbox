@@ -41,6 +41,7 @@
             <button type="button" id="outlook-clear">🗑️ Limpar áreas</button>
             <button type="button" id="outlook-usa">🇺🇸 Estados Unidos</button>
             <button type="button" id="outlook-canada">🇨🇦 Canadá</button>
+            <button type="button" id="outlook-estofex">🇪🇺 ESTOFEX</button>
             <button type="button" id="outlook-world">🌎 Mundo</button>
             <div id="outlook-search-wrap">
                 <input id="outlook-search" type="search" placeholder="Buscar cidade ou estado (ex.: Norman, Oklahoma)" aria-label="Buscar cidade ou região">
@@ -153,6 +154,14 @@
             mapa.setView([56.1, -106.3], 3);
             mapa.invalidateSize();
             status("Canadá selecionado. As categorias atuais ainda são genéricas de simulação; não representam produtos oficiais do ECCC.");
+        });
+
+        $("outlook-estofex").addEventListener("click", () => {
+            if (!mapa) return;
+            cancelarDesenho();
+            mapa.setView([50.5, 15], 4);
+            mapa.invalidateSize();
+            status("Europa selecionada para o ESTOFEX. Os níveis exibidos ainda são genéricos de simulação, não um Outlook oficial.");
         });
 
         $("outlook-search-btn").addEventListener("click", buscarLocal);
