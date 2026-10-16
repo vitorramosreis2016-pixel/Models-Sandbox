@@ -39,7 +39,13 @@
             <button type="button" id="outlook-cancel" disabled>Cancelar</button>
             <button type="button" id="outlook-auto">🤖 Gerar cenário</button>
             <button type="button" id="outlook-clear">🗑️ Limpar áreas</button>
-            <button type="button" id="outlook-world">🌎 Mapa-múndi</button>
+            <button type="button" id="outlook-usa">🇺🇸 Estados Unidos</button>
+            <button type="button" id="outlook-world">🌎 Mundo</button>
+            <div id="outlook-search-wrap">
+                <input id="outlook-search" type="search" placeholder="Buscar cidade ou estado (ex.: Norman, Oklahoma)" aria-label="Buscar cidade ou região">
+                <button type="button" id="outlook-search-btn">🔎 Buscar</button>
+            </div>
+            <span id="outlook-coordinates" aria-live="polite">Lat: -- · Lon: --</span>
         `;
 
         container.parentNode.insertBefore(barra, container);
@@ -47,7 +53,7 @@
         const legenda = document.createElement("div");
         legenda.id = "outlook-legend";
         legenda.innerHTML = `
-            <strong>Riscos convectivos</strong>
+            <strong>NWS / SPC — Convective Outlook (modo de simulação)</strong>
             <div class="outlook-legend-items">
                 ${Object.entries(RISCOS).map(([id, risco]) => `
                     <span>
@@ -79,6 +85,18 @@
             }
             #outlook-toolbar button:disabled {
                 opacity:.45; cursor:not-allowed;
+            }
+            #outlook-search-wrap {
+                display:flex; flex:1 1 300px; gap:6px; min-width:240px;
+            }
+            #outlook-search {
+                flex:1; min-width:120px; padding:9px 10px;
+                border:1px solid #3b3b54; border-radius:6px;
+                background:#11111b; color:#e2e8f0;
+            }
+            #outlook-coordinates {
+                flex:1 1 180px; color:#94a3b8;
+                font:12px ui-monospace,monospace;
             }
             #outlook-legend {
                 background:#161622; color:#cbd5e1;
@@ -113,9 +131,27 @@
         $("outlook-clear").addEventListener("click", limparAreas);
         $("outlook-auto").addEventListener("click", gerarCenario);
         $("outlook-world").addEventListener("click", () => {
+            if (!mapa) return;
             cancelarDesenho();
             mapa.setView([15, 0], 2);
             mapa.invalidateSize();
+            status("Mapa-múndi. Escolha uma região para começar o Outlook.");
+        });
+
+        $("outlook-usa").addEventListener("click", () => {
+            if (!mapa) return;
+            cancelarDesenho();
+            mapa.setView([39.5, -98.35], 4);
+            mapa.invalidateSize();
+            status("NWS / SPC — área de trabalho centralizada nos Estados Unidos.");
+        });
+
+        $("outlook-search-btn").addEventListener("click", buscarLocal);
+        $("outlook-search").addEventListener("keydown", evento => {
+            if (evento.key === "Enter") {
+                evento.preventDefault();
+                buscarLocal();
+            }
         });
 
         controleCriado = true;
@@ -142,8 +178,8 @@
         }
 
         mapa = L.map(container, {
-            center: [15, 0],
-            zoom: 2,
+            center: [39.5, -98.35],
+            zoom: 4,
             minZoom: 2,
             maxZoom: 18,
             worldCopyJump: true
@@ -182,7 +218,74 @@
             }
         });
 
-        status("Mapa carregado. Escolha um risco e desenhe sua área.");
+        mapa.on("mousemove", evento => {
+            const el = $("outlook-coordinates");
+            if (!el) return;
+            el.textContent = `Lat: ${evento.latlng.lat.toFixed(3)} · Lon: ${evento.latlng.lng.toFixed(3)}`;
+        });
+
+        mapa.on("click", evento => {
+            const el = $("outlook-coordinates");
+            if (el) {
+                el.textContent = `Lat: ${evento.latlng.lat.toFixed(3)} · Lon: ${evento.latlng.lng.toFixed(3)}`;
+            }
+        });
+
+        status("NWS / SPC — mapa carregado. Busque uma cidade ou desenhe uma área de risco.");
+    }
+
+    async function buscarLocal() {
+        const campo = $("outlook-search");
+        const consulta = campo ? campo.value.trim() : "";
+        if (!consulta) {
+            status("Digite uma cidade, estado ou região para buscar.");
+            return;
+        }
+
+        const botao = $("outlook-search-btn");
+        if (botao) botao.disabled = true;
+        status(`Buscando “${consulta}”...`);
+
+        try {
+            const url = "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q="
+                + encodeURIComponent(consulta);
+            const resposta = await fetch(url, {
+                headers: { "Accept": "application/json" }
+            });
+
+            if (!resposta.ok) throw new Error("Serviço de busca indisponível");
+            const resultados = await resposta.json();
+
+            if (!resultados.length) {
+                status("Local não encontrado. Tente incluir estado ou país.");
+                return;
+            }
+
+            const local = resultados[0];
+            const lat = Number(local.lat);
+            const lon = Number(local.lon);
+            cancelarDesenho();
+            mapa.setView([lat, lon], 9);
+            mapa.invalidateSize();
+
+            if (window.outlookSearchMarker) {
+                mapa.removeLayer(window.outlookSearchMarker);
+            }
+
+            window.outlookSearchMarker = L.marker([lat, lon])
+                .addTo(mapa)
+                .bindPopup(local.display_name)
+                .openPopup();
+
+            const coords = $("outlook-coordinates");
+            if (coords) coords.textContent = `Lat: ${lat.toFixed(3)} · Lon: ${lon.toFixed(3)}`;
+            status(`Mapa centralizado em: ${local.display_name}`);
+        } catch (erro) {
+            console.error("[Outlook] Erro ao buscar local:", erro);
+            status("Não foi possível buscar o local. Verifique a conexão com a internet e tente novamente.");
+        } finally {
+            if (botao) botao.disabled = false;
+        }
     }
 
     function obterRisco() {
@@ -314,7 +417,7 @@
             deslocar(2, 3), deslocar(2.5, -2)
         ], obterRisco(), "Núcleo de risco sintético");
 
-        status("Cenário demonstrativo criado na região central do mapa. Não é uma previsão real.");
+        status("Cenário sintético criado. Não representa uma previsão oficial do NWS / SPC.");
     }
 
     function iniciar() {
