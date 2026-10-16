@@ -40,6 +40,7 @@
             <button type="button" id="outlook-auto">🤖 Gerar cenário</button>
             <button type="button" id="outlook-clear">🗑️ Limpar áreas</button>
             <button type="button" id="outlook-usa">🇺🇸 Estados Unidos</button>
+            <button type="button" id="outlook-canada">🇨🇦 Canadá</button>
             <button type="button" id="outlook-world">🌎 Mundo</button>
             <div id="outlook-search-wrap">
                 <input id="outlook-search" type="search" placeholder="Buscar cidade ou estado (ex.: Norman, Oklahoma)" aria-label="Buscar cidade ou região">
@@ -144,6 +145,14 @@
             mapa.setView([39.5, -98.35], 4);
             mapa.invalidateSize();
             status("NWS / SPC — área de trabalho centralizada nos Estados Unidos.");
+        });
+
+        $("outlook-canada").addEventListener("click", () => {
+            if (!mapa) return;
+            cancelarDesenho();
+            mapa.setView([56.1, -106.3], 3);
+            mapa.invalidateSize();
+            status("Canadá selecionado. As categorias atuais ainda são genéricas de simulação; não representam produtos oficiais do ECCC.");
         });
 
         $("outlook-search-btn").addEventListener("click", buscarLocal);
