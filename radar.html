@@ -1,0 +1,133 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0b1018">
+  <title>Models-Sandbox | Advanced Radar</title>
+  <link rel="stylesheet" href="css/radar.css">
+<script src="js/radar.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-icon">M</div>
+      <div>
+        <h1>MODELS-SANDBOX</h1>
+        <p>ADVANCED RADAR LAB</p>
+      </div>
+    </div>
+    <div class="system-status">
+      <span class="status-dot"></span>
+      SIMULAÇÃO LOCAL
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="radar-panel">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">PRODUTO METEOROLÓGICO</p>
+          <h2>Reflectivity <span class="unit">dBZ</span></h2>
+        </div>
+        <span class="pill">SINTÉTICO</span>
+      </div>
+
+      <div class="canvas-wrap" id="canvasWrap">
+        <canvas id="radarCanvas"
+          aria-label="Radar meteorológico sintético de refletividade">
+        </canvas>
+
+        <div class="map-label label-top">MODELS-SANDBOX / RADAR 01</div>
+        <div class="map-label label-bottom" id="frameLabel">
+          TEMPO SIMULADO: 00:00
+        </div>
+        <div class="crosshair" aria-hidden="true"></div>
+      </div>
+
+      <div class="legend-section">
+        <div class="legend-title">
+          <span>REFLECTIVIDADE</span>
+          <span>dBZ</span>
+        </div>
+        <div id="legend" class="legend-bar"></div>
+        <div id="legendTicks" class="legend-ticks"></div>
+      </div>
+
+      <div class="radar-footer">
+        <span><span class="status-dot"></span> Motor sintético ativo</span>
+        <span id="stormReadout">Núcleo: -- dBZ</span>
+      </div>
+    </section>
+
+    <aside class="sidebar">
+      <section class="control-card">
+        <p class="eyebrow">CONTROLES</p>
+        <h2>Simulação</h2>
+
+        <div class="button-row">
+          <button id="playButton" class="primary-button">Ⅱ Pausar</button>
+          <button id="resetButton" class="secondary-button">↺ Reiniciar</button>
+        </div>
+
+        <label class="control-label" for="intensity">
+          Intensidade da tempestade
+          <output id="intensityValue">1.00×</output>
+        </label>
+        <input id="intensity" type="range"
+          min="0.4" max="1.5" step="0.05" value="1">
+
+        <label class="control-label" for="speed">
+          Velocidade da animação
+          <output id="speedValue">1.0×</output>
+        </label>
+        <input id="speed" type="range"
+          min="0" max="3" step="0.25" value="1">
+
+        <div class="control-note">
+          A intensidade modifica os valores simulados de refletividade.
+          A velocidade controla a evolução temporal.
+        </div>
+      </section>
+
+      <section class="control-card">
+        <p class="eyebrow">DADOS DA SIMULAÇÃO</p>
+        <h2>Diagnóstico</h2>
+
+        <div class="metric">
+          <span>Refletividade máxima</span>
+          <strong id="maxDbz">-- dBZ</strong>
+        </div>
+        <div class="metric">
+          <span>Área com eco ≥ 35 dBZ</span>
+          <strong id="echoArea">-- %</strong>
+        </div>
+        <div class="metric">
+          <span>Quadros renderizados</span>
+          <strong id="frameCount">0</strong>
+        </div>
+        <div class="metric">
+          <span>Estado</span>
+          <strong id="runState">Executando</strong>
+        </div>
+      </section>
+
+      <section class="control-card info-card">
+        <p class="eyebrow">SOBRE ESTE PRODUTO</p>
+        <h2>Reflectivity</h2>
+        <p>
+          Campo de refletividade sintético, com núcleos de precipitação
+          simulados e evolução temporal. Ainda não utiliza observações
+          reais nem dados de um modelo atmosférico.
+        </p>
+      </section>
+    </aside>
+  </main>
+
+  <footer class="page-footer">
+    MODELS-SANDBOX · RADAR PROTOTYPE 0.1.0
+    <span>DEMONSTRAÇÃO SINTÉTICA — NÃO É RADAR OPERACIONAL</span>
+  </footer>
+</body>
+</html>
