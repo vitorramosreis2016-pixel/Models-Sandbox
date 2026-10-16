@@ -1,151 +1,345 @@
-// CONTROLADOR DOS OUTLOOKS, MODELOS E INTEGRAÇÃO COM MAPA-MÚNDI (LEAFLET)
 
-let mapaOutlook;
-let camadaDesenhoManual;
-let camadaModelosAuto;
+/* =========================================================
+   MODELS-SANDBOX — CONVECTIVE OUTLOOK
+   Mapa geográfico, desenho manual e cenários sintéticos
+   Requer Leaflet 1.9.4
+   ========================================================= */
 
-// Definição de cores e estilos para os padrões do SPC (Storm Prediction Center)
-const estilosRisco = {
-    "TSTM": { cor: "#c2e2be", opacidade: 0.2, texto: "Tempestade Comum (General Thunderstorms)" },
-    "MRGL": { cor: "#61b36b", opacidade: 0.35, texto: "Risco Marginal (Marginal Risk)" },
-    "SLGT": { cor: "#f7e379", opacidade: 0.5, texto: "Risco Leve (Slight Risk)" },
-    "ENH":  { cor: "#e69d5e", opacidade: 0.6, texto: "Risco Acentuado (Enhanced Risk)" },
-    "MDT":  { cor: "#ca5858", opacidade: 0.7, texto: "Risco Moderado (Moderate Risk)" },
-    "HIGH": { cor: "#ff00ff", opacidade: 0.75, texto: "Risco Alto (High Risk - Outbreak Violento)" }
-};
+(() => {
+    "use strict";
 
-// 1. Inicialização do Mapa-múndi assim que a página estiver pronta
-window.addEventListener('DOMContentLoaded', () => {
-    // Inicializa o mapa centralizado nos EUA/Atlântico (ótimo corredor de tempestades)
-    mapaOutlook = L.map('convective-map').setView([38.0, -95.0], 4);
+    const RISCOS = {
+        TSTM: { nome: "General Thunderstorms", cor: "#b8d9a8" },
+        MRGL: { nome: "Marginal", cor: "#66a366" },
+        SLGT: { nome: "Slight", cor: "#f5e45b" },
+        ENH:  { nome: "Enhanced", cor: "#e99a45" },
+        MDT:  { nome: "Moderate", cor: "#df4545" },
+        HIGH: { nome: "High", cor: "#ed55d5" }
+    };
 
-    // Carrega a textura visual do mapa-múndi (Estilo Dark / CartoDB Voyager Dark)
-    L.tileLayer('https://{s}://{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; OpenStreetMap &copy; CARTO',
-        subdomains: 'abcd',
-        maxZoom: 20
-    }).addTo(mapaOutlook);
+    let mapa = null;
+    let camadaRiscos = null;
+    let marcadoresDesenho = null;
+    let pontosDesenho = [];
+    let linhaDesenho = null;
+    let modoDesenho = false;
+    let controleCriado = false;
 
-    // Inicializa as camadas onde os desenhos vão morar
-    camadaDesenhoManual = L.featureGroup().addTo(mapaOutlook);
-    camadaModelosAuto = L.layerGroup().addTo(mapaOutlook);
+    const $ = id => document.getElementById(id);
 
-    // Ativa os cliques no mapa para o modo manual
-    configurarCliquesMapa();
+    function criarInterface() {
+        const container = $("convective-map");
+        if (!container || controleCriado) return;
 
-    // Corrige bugs visuais de renderização do Leaflet em elementos ocultos (abas)
-    document.querySelector('[onclick*="convective-tab"]').addEventListener('click', () => {
-        setTimeout(() => { mapaOutlook.invalidateSize(); }, 200);
-    });
-});
+        const barra = document.createElement("div");
+        barra.id = "outlook-toolbar";
+        barra.innerHTML = `
+            <button type="button" id="outlook-draw">✏️ Desenhar área</button>
+            <button type="button" id="outlook-finish" disabled>✓ Finalizar polígono</button>
+            <button type="button" id="outlook-cancel" disabled>Cancelar</button>
+            <button type="button" id="outlook-auto">🤖 Gerar cenário</button>
+            <button type="button" id="outlook-clear">🗑️ Limpar áreas</button>
+            <button type="button" id="outlook-world">🌎 Mapa-múndi</button>
+        `;
 
-// 2. Lógica de Alternância: Modo Manual vs Modo Automático (Modelos)
-function alternarModoOutlook() {
-    const modo = document.getElementById('outlook-mode').value;
-    const painelFerramentasManuais = document.getElementById('manual-tools');
+        container.parentNode.insertBefore(barra, container);
 
-    // Limpa os desenhos anteriores ao trocar de modo
-    camadaDesenhoManual.clearLayers();
-    camadaModelosAuto.clearLayers();
+        const legenda = document.createElement("div");
+        legenda.id = "outlook-legend";
+        legenda.innerHTML = `
+            <strong>Riscos convectivos</strong>
+            <div class="outlook-legend-items">
+                ${Object.entries(RISCOS).map(([id, risco]) => `
+                    <span>
+                        <i style="background:${risco.cor}"></i>
+                        ${id}
+                    </span>
+                `).join("")}
+            </div>
+            <p id="outlook-status" role="status">
+                Selecione um nível de risco e desenhe uma área.
+            </p>
+        `;
+        barra.insertAdjacentElement("afterend", legenda);
 
-    if (modo === "manual") {
-        painelFerramentasManuais.style.display = "block";
-        alert("Modo Manual Ativo: Clique em qualquer ponto do mapa do mundo para gerar círculos de risco meteorológico de forma livre!");
-    } else {
-        painelFerramentasManuais.style.display = "none";
-        alert("Modo Automático Ativo: O mapa agora responderá aos parâmetros do modelo numérico e dos sliders!");
-        gerarOutlookAutomatico();
-    }
-}
+        const estilo = document.createElement("style");
+        estilo.id = "outlook-styles";
+        estilo.textContent = `
+            #outlook-toolbar {
+                display:flex; flex-wrap:wrap; gap:8px;
+                margin:0 0 12px; align-items:center;
+            }
+            #outlook-toolbar button {
+                padding:9px 12px; border:1px solid #3b3b54;
+                border-radius:6px; background:#202033;
+                color:#e2e8f0; cursor:pointer;
+            }
+            #outlook-toolbar button:hover:not(:disabled) {
+                background:#30304a;
+            }
+            #outlook-toolbar button:disabled {
+                opacity:.45; cursor:not-allowed;
+            }
+            #outlook-legend {
+                background:#161622; color:#cbd5e1;
+                border:1px solid #2d2d3d; border-radius:6px;
+                padding:10px 12px; margin-bottom:12px;
+                font:13px system-ui,sans-serif;
+            }
+            .outlook-legend-items {
+                display:flex; flex-wrap:wrap; gap:12px;
+                margin-top:8px;
+            }
+            .outlook-legend-items span {
+                display:flex; align-items:center; gap:5px;
+            }
+            .outlook-legend-items i {
+                display:inline-block; width:12px; height:12px;
+                border:1px solid #ffffff66; border-radius:2px;
+            }
+            #outlook-status { margin:8px 0 0; color:#94a3b8; }
+            #convective-map { min-height:400px; }
+            #convective-map.outlook-drawing { cursor:crosshair; }
+            @media(max-width:700px) {
+                #outlook-toolbar button { flex:1 1 140px; }
+                #convective-map { min-height:400px; }
+            }
+        `;
+        document.head.appendChild(estilo);
 
-// 3. MODO MANUAL: Permite o jogador "desenhar" riscos clicando no mapa do mundo
-function configurarCliquesMapa() {
-    mapaOutlook.on('click', (e) => {
-        const modo = document.getElementById('outlook-mode').value;
-        if (modo !== "manual") return;
-
-        const nivelRisco = document.getElementById('risk-level-select').value;
-        const config = estilosRisco[nivelRisco];
-
-        // Cria uma área circular simulada de impacto no mapa baseado no clique do mouse
-        const circuloRisco = L.circle(e.latlng, {
-            color: config.cor,
-            fillColor: config.cor,
-            fillOpacity: config.opacidade,
-            radius: 250000 // Raio padrão de 250km de abrangência por clique
+        $("outlook-draw").addEventListener("click", iniciarDesenho);
+        $("outlook-finish").addEventListener("click", finalizarDesenho);
+        $("outlook-cancel").addEventListener("click", cancelarDesenho);
+        $("outlook-clear").addEventListener("click", limparAreas);
+        $("outlook-auto").addEventListener("click", gerarCenario);
+        $("outlook-world").addEventListener("click", () => {
+            cancelarDesenho();
+            mapa.setView([15, 0], 2);
+            mapa.invalidateSize();
         });
 
-        // Adiciona um balão descritivo ao polígono desenhado
-        circuloRisco.bindPopup(`<b>${nivelRisco}</b> - ${config.texto}`);
-        camadaDesenhoManual.addLayer(circuloRisco);
-    });
-}
+        controleCriado = true;
+    }
 
-// 4. MODO AUTOMÁTICO: Processa os Sliders + o viés do Modelo Numérico selecionado
-function gerarOutlookAutomatico() {
-    const modo = document.getElementById('outlook-mode').value;
-    if (modo !== "auto") return;
+    function status(mensagem) {
+        const elemento = $("outlook-status");
+        if (elemento) elemento.textContent = mensagem;
+    }
 
-    // Limpa a tela antes de desenhar a nova projeção matemática
-    camadaModelosAuto.clearLayers();
+    function iniciarMapa() {
+        const container = $("convective-map");
+        if (!container) return;
 
-    // Puxa as variáveis físicas atuais calculadas do nosso motor matemático
-    const t = parseFloat(document.getElementById('temp').value);
-    const td = parseFloat(document.getElementById('dwpt').value);
-    const lapse = parseFloat(document.getElementById('lapse').value);
-    const srw = parseInt(document.getElementById('srw').value);
-    
-    // Roda a fórmula calibrada do math.js para pegar o CAPE exato
-    const cape = estimarCAPE(t, td, lapse);
+        if (typeof L === "undefined") {
+            status("Erro: Leaflet não foi carregado. Confira os scripts no index.html.");
+            console.error("[Outlook] Leaflet indisponível.");
+            return;
+        }
 
-    // Captura qual modelo numérico o jogador selecionou para rodar a projeção
-    const modeloSelecionado = document.getElementById('model-select').value;
+        if (mapa) {
+            mapa.invalidateSize();
+            return;
+        }
 
-    // Aplica o "viés ou personalidade física" do modelo escolhido
-    // Modelos de mesoescala (HRRR/WRF) capturam melhor eventos severos localizados, globais tendem a espalhar mais
-    let modificadorVento = srw;
-    if (modeloSelecionado === "HRRR" || modeloSelecionado === "WRF") modificadorVento *= 1.2; 
-    if (modeloSelecionado === "GFS") modificadorVento *= 0.9;
+        mapa = L.map(container, {
+            center: [15, 0],
+            zoom: 2,
+            minZoom: 2,
+            maxZoom: 18,
+            worldCopyJump: true
+        });
 
-    // Decisão algorítmica para classificar o nível do Risco Convectivo baseado no ambiente
-    let riscoFinal = "TSTM";
-    if (cape > 500 && modificadorVento > 25) riscoFinal = "MRGL";
-    if (cape > 1200 && modificadorVento > 35) riscoFinal = "SLGT";
-    if (cape > 2000 && modificadorVento > 45) riscoFinal = "ENH";
-    if (cape > 3000 && modificadorVento > 55 && lapse > 7.0) riscoFinal = "MDT";
-    if (cape > 4000 && modificadorVento > 65 && lapse > 7.5) riscoFinal = "HIGH";
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>',
+            maxZoom: 19
+        }).addTo(mapa);
 
-    const config = estilosRisco[riscoFinal];
+        camadaRiscos = L.featureGroup().addTo(mapa);
+        marcadoresDesenho = L.layerGroup().addTo(mapa);
 
-    // Desenha as plumas de previsão automatizadas em regiões estratégicas de teste (Centro dos EUA)
-    const coordenadasTesteEUA = [37.5, -96.0];
-    
-    const poligonoPrevisaoAuto = L.circle(coordenadasTesteEUA, {
-        color: config.cor,
-        fillColor: config.cor,
-        fillOpacity: config.opacidade,
-        radius: 400000 + (modificadorVento * 3000) // O raio cresce de acordo com os ventos do modelo
-    });
+        mapa.on("click", evento => {
+            if (!modoDesenho) return;
 
-    poligonoPrevisaoAuto.bindPopup(`
-        <b>Previsão Automatizada - SPC Style</b><br>
-        <b>Modelo Emissor:</b> ${modeloSelecionado}<br>
-        <b>Risco Computado:</b> ${riscoFinal} (${config.texto})<br>
-        <hr style='border: 1px dashed #444;'>
-        <b>Condições Analisadas:</b><br>
-        - CAPE Atmosférico: ${cape} J/kg<br>
-        - Cisalhamento SRW Ajustado: ${Math.round(modificadorVento)} kt
-    `);
+            pontosDesenho.push(evento.latlng);
 
-    camadaModelosAuto.addLayer(poligonoPrevisaoAuto);
-}
+            L.circleMarker(evento.latlng, {
+                radius: 4,
+                color: "#ffffff",
+                weight: 2,
+                fillColor: "#38bdf8",
+                fillOpacity: 1
+            }).addTo(marcadoresDesenho);
 
-// Vincula a atualização automática do mapa aos movimentos dos Sliders na tela principal
-// Procura pela função original no js/main.js e acopla a atualização automática de mapas
-if (typeof processarMesoanalise === 'function') {
-    const funcaoOriginal = processarMesoanalise;
-    processarMesoanalise = function() {
-        funcaoOriginal();
-        gerarOutlookAutomatico();
-    };
-}
+            atualizarLinhaDesenho();
+            $("outlook-finish").disabled = pontosDesenho.length < 3;
+
+            status(`Pontos selecionados: ${pontosDesenho.length}. Marque pelo menos 3.`);
+        });
+
+        mapa.on("dblclick", () => {
+            if (modoDesenho && pontosDesenho.length >= 3) {
+                finalizarDesenho();
+            }
+        });
+
+        status("Mapa carregado. Escolha um risco e desenhe sua área.");
+    }
+
+    function obterRisco() {
+        const seletor = $("risk-level-select");
+        const valor = seletor ? seletor.value : "SLGT";
+        return RISCOS[valor] ? valor : "SLGT";
+    }
+
+    function adicionarPoligono(pontos, nivel, descricao = "Área manual") {
+        const risco = RISCOS[nivel];
+        if (!risco || pontos.length < 3) return;
+
+        const poligono = L.polygon(pontos, {
+            color: risco.cor,
+            weight: 2,
+            opacity: 1,
+            fillColor: risco.cor,
+            fillOpacity: 0.32
+        }).addTo(camadaRiscos);
+
+        poligono.bindPopup(`
+            <strong>${risco.nome}</strong><br>
+            Categoria: ${nivel}<br>
+            ${descricao}
+        `);
+
+        poligono.on("click", () => {
+            const seletor = $("risk-level-select");
+            if (seletor) seletor.value = nivel;
+        });
+    }
+
+    function atualizarLinhaDesenho() {
+        if (linhaDesenho) {
+            mapa.removeLayer(linhaDesenho);
+            linhaDesenho = null;
+        }
+
+        if (pontosDesenho.length >= 2) {
+            linhaDesenho = L.polyline(pontosDesenho, {
+                color: "#38bdf8",
+                weight: 2,
+                dashArray: "6 5"
+            }).addTo(mapa);
+        }
+    }
+
+    function iniciarDesenho() {
+        if (!mapa) return;
+
+        cancelarDesenho();
+        modoDesenho = true;
+        mapa.doubleClickZoom.disable();
+        $("convective-map").classList.add("outlook-drawing");
+        $("outlook-draw").disabled = true;
+        $("outlook-finish").disabled = true;
+        $("outlook-cancel").disabled = false;
+
+        status("Clique no mapa para marcar os vértices do polígono.");
+    }
+
+    function finalizarDesenho() {
+        if (!modoDesenho || pontosDesenho.length < 3) {
+            status("Você precisa marcar pelo menos 3 pontos.");
+            return;
+        }
+
+        adicionarPoligono([...pontosDesenho], obterRisco());
+
+        cancelarDesenho();
+        status("Área adicionada ao Outlook.");
+    }
+
+    function cancelarDesenho() {
+        modoDesenho = false;
+
+        if (mapa) mapa.doubleClickZoom.enable();
+        if ($("convective-map")) {
+            $("convective-map").classList.remove("outlook-drawing");
+        }
+
+        if (marcadoresDesenho) marcadoresDesenho.clearLayers();
+
+        if (linhaDesenho && mapa) {
+            mapa.removeLayer(linhaDesenho);
+        }
+
+        linhaDesenho = null;
+        pontosDesenho = [];
+
+        if ($("outlook-draw")) $("outlook-draw").disabled = false;
+        if ($("outlook-finish")) $("outlook-finish").disabled = true;
+        if ($("outlook-cancel")) $("outlook-cancel").disabled = true;
+    }
+
+    function limparAreas() {
+        cancelarDesenho();
+        if (camadaRiscos) camadaRiscos.clearLayers();
+        status("Todas as áreas de risco foram removidas.");
+    }
+
+    // Cenário demonstrativo, não é uma previsão meteorológica real.
+    function gerarCenario() {
+        if (!mapa) return;
+
+        cancelarDesenho();
+        camadaRiscos.clearLayers();
+
+        const centro = mapa.getCenter();
+        const lat = centro.lat;
+        const lon = centro.lng;
+
+        const deslocar = (dLat, dLon) => [lat + dLat, lon + dLon];
+
+        adicionarPoligono([
+            deslocar(-5, -8), deslocar(-4, 5),
+            deslocar(3, 8), deslocar(6, -2),
+            deslocar(2, -9)
+        ], "TSTM", "Cenário sintético");
+
+        adicionarPoligono([
+            deslocar(-3, -5), deslocar(-2, 3),
+            deslocar(3, 5), deslocar(4, -2),
+            deslocar(1, -6)
+        ], "MRGL", "Cenário sintético");
+
+        adicionarPoligono([
+            deslocar(-1.5, -3), deslocar(-1, 2),
+            deslocar(2, 3), deslocar(2.5, -2)
+        ], obterRisco(), "Núcleo de risco sintético");
+
+        status("Cenário demonstrativo criado na região central do mapa. Não é uma previsão real.");
+    }
+
+    function iniciar() {
+        criarInterface();
+
+        const botaoAba = document.querySelector(
+            '[onclick*="convective-tab"]'
+        );
+
+        if (botaoAba) {
+            botaoAba.addEventListener("click", () => {
+                setTimeout(iniciarMapa, 150);
+            });
+        }
+
+        // Também suporta abrir a aba por outros meios.
+        const aba = $("convective-tab");
+        if (aba && aba.classList.contains("active")) {
+            setTimeout(iniciarMapa, 100);
+        }
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", iniciar, { once: true });
+    } else {
+        iniciar();
+    }
+})();
