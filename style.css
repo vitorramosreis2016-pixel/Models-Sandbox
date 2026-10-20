@@ -303,7 +303,7 @@ header p {
    empilhados em telas estreitas. */
 #skewt-tab > div:first-of-type {
     display: grid !important;
-    grid-template-columns: minmax(0, 2fr) minmax(220px, 1fr) minmax(220px, 1fr);
+    grid-template-columns: minmax(0, 2fr) minmax(240px, 1fr);
     align-items: stretch;
     gap: 12px !important;
 }
@@ -345,13 +345,11 @@ header p {
     #skewt-tab > div:first-of-type {
         grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     }
-    #skewt-chart { grid-column: 1 / -1; height: 600px !important; }
-    #sounding-side-panels { grid-column: 1; }
+    #skewt-chart { grid-column: 1; height: 600px !important; }
     #sharppy-panel { grid-column: 2; }
 }
 @media (max-width: 700px) {
     #skewt-tab > div:first-of-type { grid-template-columns: minmax(0, 1fr); }
-    #skewt-chart, #sounding-side-panels, #sharppy-panel { grid-column: 1; }
+    #skewt-chart, #sharppy-panel { grid-column: 1; }
     #skewt-chart { height: 500px !important; }
-    #sounding-side-panels { display: grid; grid-template-columns: 1fr; }
 }
