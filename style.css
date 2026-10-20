@@ -312,11 +312,14 @@ header p {
     min-width: 0;
     height: 650px !important;
 }
-#sounding-side-panels {
-    display: flex;
-    flex-direction: column;
+#hodograph-panel {
+    grid-column: 1;
     min-width: 0;
-    gap: 12px;
+}
+#hodograph-chart {
+    width: 100%;
+    height: 300px;
+    min-width: 0;
 }
 .sounding-subpanel {
     flex: 1 1 0;
@@ -346,10 +349,11 @@ header p {
         grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     }
     #skewt-chart { grid-column: 1; height: 600px !important; }
-    #sharppy-panel { grid-column: 2; }
+    #hodograph-panel { grid-column: 1; }
+    #sharppy-panel { grid-column: 2; grid-row: 1 / span 2; }
 }
 @media (max-width: 700px) {
     #skewt-tab > div:first-of-type { grid-template-columns: minmax(0, 1fr); }
-    #skewt-chart, #sharppy-panel { grid-column: 1; }
+    #skewt-chart, #hodograph-panel, #sharppy-panel { grid-column: 1; grid-row: auto; }
     #skewt-chart { height: 500px !important; }
 }
