@@ -692,6 +692,93 @@ const ModelsSounding = (() => {
         }
     }
 
+    function renderHodograph(sounding) {
+        const el = $("hodograph-chart");
+        if (!el || !window.Plotly) return;
+        const levels = sounding.levels.filter(level => level.height <= 12000);
+        const labels = levels.map(level => `${(level.height / 1000).toFixed(1)} km`);
+        const trace = {
+            type: "scatter", mode: "lines+markers+text",
+            x: levels.map(level => level.u),
+            y: levels.map(level => level.v),
+            text: levels.filter((_, i) => i % 5 === 0).map(level => `${(level.height / 1000).toFixed(0)}`),
+            textposition: "top center",
+            customdata: levels.map(level => [level.height, level.windSpeed, level.windDirection]),
+            hovertemplate: "%{customdata[0]:.0f} m<br>u=%{x:.1f} kt<br>v=%{y:.1f} kt<br>V=%{customdata[1]:.1f} kt<br>Dir=%{customdata[2]:.0f}°<extra></extra>",
+            line: { color: "#38bdf8", width: 2 },
+            marker: { color: levels.map(level => level.height), colorscale: "Turbo", size: 4, showscale: false }
+        };
+        const layout = {
+            paper_bgcolor: "#121821", plot_bgcolor: "#121821",
+            margin: { l: 35, r: 8, t: 8, b: 30 },
+            showlegend: false, autosize: true,
+            xaxis: { title: "u (kt)", zeroline: true, zerolinecolor: "#94a3b8", gridcolor: "#263244", color: "#cbd5e1" },
+            yaxis: { title: "v (kt)", zeroline: true, zerolinecolor: "#94a3b8", gridcolor: "#263244", color: "#cbd5e1", scaleanchor: "x", scaleratio: 1 },
+            font: { color: "#cbd5e1", size: 9 }
+        };
+        window.Plotly.react(el, [trace], layout, { displayModeBar: false, responsive: true });
+    }
+
+    function renderWindBarbs(sounding) {
+        const el = $("wind-barbs-chart");
+        if (!el || !window.Plotly) return;
+        const selectedPressures = [1000, 925, 850, 700, 500, 400, 300, 250, 200, 150, 100];
+        const levels = selectedPressures.map(p => sounding.levels.reduce((best, level) =>
+            Math.abs(level.pressure - p) < Math.abs(best.pressure - p) ? level : best
+        ));
+        const traces = [];
+        const xs = [], ys = [];
+        levels.forEach(level => {
+            const z = level.height / 1000;
+            const speed = level.windSpeed;
+            // Shaft points toward the direction the wind is blowing to.
+            const angle = Math.atan2(level.v, level.u);
+            const dx = Math.cos(angle) * 0.28;
+            const dy = Math.sin(angle) * 0.28;
+            xs.push(level.u, level.u + dx, null);
+            ys.push(z, z + dy, null);
+            // Standardized-looking feathers: each 10 kt is a full barb,
+            // each 5 kt a half barb; speeds remain the underlying values.
+            let remaining = Math.round(speed / 5) * 5;
+            let along = 0;
+            while (remaining >= 5 && along < 0.55) {
+                const x0 = level.u + dx * (1 - along);
+                const y0 = z + dy * (1 - along);
+                const sign = level.v >= 0 ? 1 : -1;
+                const x1 = x0 - sign * 0.13;
+                const y1 = y0 + 0.20;
+                xs.push(x0, x1, null);
+                ys.push(y0, y1, null);
+                remaining -= remaining >= 10 ? 10 : 5;
+                along += 0.13;
+            }
+        });
+        traces.push({
+            type: "scatter", mode: "lines", x: xs, y: ys,
+            line: { color: "#e2e8f0", width: 1.5 },
+            hoverinfo: "skip", showlegend: false
+        });
+        traces.push({
+            type: "scatter", mode: "markers+text",
+            x: levels.map(level => level.u),
+            y: levels.map(level => level.height / 1000),
+            text: levels.map(level => `${Math.round(level.pressure)}`),
+            textposition: "middle left",
+            customdata: levels.map(level => [level.pressure, level.windSpeed, level.windDirection]),
+            hovertemplate: "%{customdata[0]:.0f} hPa<br>%{customdata[1]:.0f} kt<br>Direção %{customdata[2]:.0f}°<extra></extra>",
+            marker: { color: "#22d3ee", size: 4 },
+            textfont: { color: "#94a3b8", size: 8 },
+            showlegend: false
+        });
+        window.Plotly.react(el, traces, {
+            paper_bgcolor: "#121821", plot_bgcolor: "#121821",
+            margin: { l: 35, r: 8, t: 8, b: 28 },
+            xaxis: { title: "u (kt)", gridcolor: "#263244", color: "#cbd5e1", zeroline: true, zerolinecolor: "#64748b" },
+            yaxis: { title: "Altura (km)", gridcolor: "#263244", color: "#cbd5e1", range: [0, 16] },
+            font: { color: "#cbd5e1", size: 9 }, showlegend: false, autosize: true
+        }, { displayModeBar: false, responsive: true });
+    }
+
     // --------------------------------------------------
     // 9. ATUALIZAÇÃO DA INTERFACE
     // --------------------------------------------------
@@ -815,6 +902,8 @@ const ModelsSounding = (() => {
             };
 
             renderSkewT(traces);
+            renderHodograph(sounding);
+            renderWindBarbs(sounding);
             updateReadouts(sounding, thermo, kinematics);
 
             // Envia os diagnósticos recalculados para o Outlook automático.
