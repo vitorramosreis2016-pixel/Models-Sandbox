@@ -193,7 +193,7 @@ header p {
 }
 
 /* Caixas de Gráficos e Mapas (Placeholder temporário) */
-#skewt-chart-container, #convective-map, #rainfall-map, #fire-map, #climate-view {
+#skewt-chart-container, #rainfall-map, #fire-map, #climate-view {
     flex: 1;
     background-color: #121218;
     border: 2px dashed #2d2d3d;
@@ -202,6 +202,23 @@ header p {
     align-items: center;
     justify-content: center;
     min-height: 400px;
+}
+
+/* Leaflet precisa de um container de bloco; display:flex pode quebrar os tiles. */
+#convective-map {
+    display: block;
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    min-height: 400px;
+    overflow: hidden;
+}
+#convective-tab, #skewt-tab { min-width: 0; }
+#skewt-chart { width: 100%; min-width: 0; }
+#skewt-tab > div { min-width: 0; }
+@media (max-width: 1000px) {
+    #skewt-tab > div { flex-direction: column !important; }
+    #sharppy-panel { width: 100%; }
 }
 
 .placeholder-text {
