@@ -128,92 +128,74 @@ const ModelsSounding = (() => {
     // --------------------------------------------------
 
     function generateSounding(params) {
-        const {
-            temp,
-            dewpoint,
-            lapse,
-            wind,
-            srw
-        } = params;
-
+        const { temp, dewpoint, lapse, wind, srw } = params;
         const surfacePressure = 1000;
         const levels = [];
-
-        // SRW é mantido como um parâmetro de controle legado.
-        // Não é interpretado automaticamente como SRH.
-        const shearInput = clamp(srw, 0, 150);
-
-        const lcl = calculateLCL(
-            temp,
-            Math.min(dewpoint, temp),
-            surfacePressure
-        );
-
-        // Preserva o conteúdo de água inicial aproximadamente
-        // constante abaixo do LCL usando a razão de mistura.
+        // "srw" is retained as the legacy control, but used here as
+        // a bounded 0–6 km bulk-shear magnitude in knots, not SRH.
+        const shear06kmKt = clamp(srw, 0, 150);
+        const surfaceDewpoint = Math.min(dewpoint, temp);
         const surfaceMixingRatio = mixingRatioFromDewpoint(
-            Math.min(dewpoint, temp),
-            surfacePressure
+            surfaceDewpoint, surfacePressure
         );
 
-        for (
-            let pressure = PRESSURE_BOTTOM;
-            pressure >= PRESSURE_TOP;
-            pressure -= PRESSURE_STEP
-        ) {
-            const height = pressureToHeight(pressure);
-            const heightKm = height / 1000;
+        const lcl = calculateLCL(temp, surfaceDewpoint, surfacePressure);
 
-            const environmentalTemp =
-                temp - lapse * heightKm;
+        // A synthetic environmental profile with a user-controlled
+        // low-level lapse rate, a modest mid-level cap, and renewed
+        // cooling aloft. It is a scenario profile, not observed data.
+        function environmentalTemperature(heightKm) {
+            const z1 = Math.min(heightKm, 1.5);
+            const z2 = Math.max(0, Math.min(heightKm - 1.5, 2.0));
+            const z3 = Math.max(0, heightKm - 3.5);
+            return temp - lapse * z1 - 4.0 * z2 - 6.5 * z3;
+        }
 
-            const vaporPressure =
-                surfaceMixingRatio * pressure /
-                (EPSILON + surfaceMixingRatio);
+        // Reduce mixing ratio with height to create a physically clearer
+        // dry layer aloft. The dewpoint is diagnosed from vapor pressure,
+        // then constrained to remain no warmer than the environment.
+        function environmentalDewpoint(pressure, heightKm, environmentalTemp) {
+            const vaporPressureAtSurface = saturationVaporPressure(surfaceDewpoint);
+            const surfaceMixingRatioAtPressure =
+                EPSILON * vaporPressureAtSurface /
+                Math.max(0.1, surfacePressure - vaporPressureAtSurface);
 
-            const dryDewpoint =
-                vaporPressureToDewpoint(vaporPressure);
+            const mixingRatio = surfaceMixingRatioAtPressure *
+                Math.exp(-heightKm / 2.4) *
+                (heightKm > 3 ? Math.exp(-(heightKm - 3) / 3.0) : 1);
 
-            // Redução progressiva da umidade acima da camada
-            // mais baixa. Isso é uma hipótese sintética,
-            // não um perfil observado.
-            // A secagem cresce com a altitude; não mantém a coluna
-            // artificialmente úmida nos níveis médios e altos.
-            const upperDrying = Math.max(0, heightKm - 1.0) * 1.8
-                + Math.max(0, heightKm - 4.0) * 0.8;
+            const vaporPressure = mixingRatio * pressure /
+                Math.max(0.1, EPSILON + mixingRatio);
+            const dewpointAtLevel = vaporPressureToDewpoint(vaporPressure);
+            return Math.min(environmentalTemp, dewpointAtLevel);
+        }
 
-            let environmentalDewpoint =
-                dryDewpoint - upperDrying;
-
-            environmentalDewpoint = Math.min(
-                environmentalTemp,
-                environmentalDewpoint
-            );
-
-            // Perfil de vento artificial com aumento gradual
-            // da velocidade e rotação da direção com a altura.
-            const fraction = clamp(height / 6000, 0, 1.5);
-            const speedKt = Math.max(
-                0,
-                wind + shearInput * fraction
-            );
-
-            const directionDeg = (180 + heightKm * 12) % 360;
+        // Wind turns clockwise with height and increases smoothly.
+        // The input controls the total 0–6 km vector shear, rather than
+        // being added linearly to speed at every level.
+        function windAtHeight(heightKm) {
+            const fraction = clamp(heightKm / 6, 0, 1.5);
+            const speedKt = Math.max(0, wind + shear06kmKt * fraction);
+            const directionDeg = (165 + 55 * Math.min(fraction, 1)) % 360;
             const directionRad = directionDeg * Math.PI / 180;
-
-            // Convenção meteorológica: direção de onde o vento vem.
             const u = -speedKt * Math.sin(directionRad);
             const v = -speedKt * Math.cos(directionRad);
+            return { windSpeed: speedKt, windDirection: directionDeg, u, v };
+        }
 
+        for (let pressure = PRESSURE_BOTTOM; pressure >= PRESSURE_TOP; pressure -= PRESSURE_STEP) {
+            const height = pressureToHeight(pressure);
+            const heightKm = height / 1000;
+            const environmentalTemp = environmentalTemperature(heightKm);
+            const envDewpoint = environmentalDewpoint(
+                pressure, heightKm, environmentalTemp
+            );
             levels.push({
                 pressure,
                 height,
                 temp: environmentalTemp,
-                dewpoint: environmentalDewpoint,
-                windSpeed: speedKt,
-                windDirection: directionDeg,
-                u,
-                v
+                dewpoint: envDewpoint,
+                ...windAtHeight(heightKm)
             });
         }
 
@@ -222,14 +204,14 @@ const ModelsSounding = (() => {
             lcl,
             surface: {
                 temp,
-                dewpoint: Math.min(dewpoint, temp),
+                dewpoint: surfaceDewpoint,
                 pressure: surfacePressure,
                 mixingRatio: surfaceMixingRatio
             },
             parameters: {
                 lapse,
                 surfaceWind: wind,
-                shearInput
+                shear06kmKt
             }
         };
     }
