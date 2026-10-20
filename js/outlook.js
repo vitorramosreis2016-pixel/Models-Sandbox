@@ -438,8 +438,69 @@
         status("Cenário sintético criado. Não representa uma previsão oficial do NWS / SPC.");
     }
 
+    function nivelPorSondagem(dados) {
+        const cape = Math.max(0, Number(dados.cape) || 0);
+        const cin = Number(dados.cin) || 0;
+        const shear = Math.max(0, Number(dados.shear06km) || 0);
+
+        // Regras heurísticas para cenário sintético, não previsão operacional.
+        if (cape < 500 || cin < -200) return "TSTM";
+        let nivel = cape >= 3500 ? "HIGH"
+            : cape >= 2500 ? "MDT"
+            : cape >= 1800 ? "ENH"
+            : cape >= 1000 ? "SLGT"
+            : "MRGL";
+
+        if (shear >= 40 && nivel === "SLGT") nivel = "ENH";
+        else if (shear >= 30 && nivel === "MRGL") nivel = "SLGT";
+        return nivel;
+    }
+
+    function atualizarOutlookDaSondagem(dados) {
+        const modo = $("outlook-mode");
+        if (!mapa || !camadaRiscos || (modo && modo.value !== "auto")) return;
+
+        camadaRiscos.clearLayers();
+        const nivel = nivelPorSondagem(dados);
+        const centro = mapa.getCenter();
+        const lat = centro.lat;
+        const lon = centro.lng;
+        const raio = nivel === "HIGH" ? 7 : nivel === "MDT" ? 5.5
+            : nivel === "ENH" ? 4.5 : nivel === "SLGT" ? 3.5 : 2.5;
+        const pontos = [
+            [lat - raio, lon - raio * 1.4],
+            [lat - raio * 0.7, lon + raio * 0.8],
+            [lat + raio * 0.5, lon + raio * 1.4],
+            [lat + raio, lon - raio * 0.3],
+            [lat + raio * 0.2, lon - raio * 1.3]
+        ];
+        adicionarPoligono(pontos, nivel,
+            `Sondagem sintética: CAPE ${Math.round(dados.cape)} J/kg; CIN ${Math.round(dados.cin)} J/kg; shear 0–6 km ${Math.round(dados.shear06km)} kt. Não é previsão real.`);
+        status(`Outlook automático atualizado pela sondagem: ${nivel} · CAPE ${Math.round(dados.cape)} J/kg · CIN ${Math.round(dados.cin)} J/kg.`);
+    }
+
     function iniciar() {
         criarInterface();
+
+        window.addEventListener("models-sounding-updated", evento => {
+            atualizarOutlookDaSondagem(evento.detail || {});
+        });
+
+        const modoOutlook = $("outlook-mode");
+        if (modoOutlook) {
+            modoOutlook.addEventListener("change", () => {
+                if (modoOutlook.value === "auto" && window.ModelsSounding?.getLastSounding) {
+                    const last = window.ModelsSounding.getLastSounding();
+                    if (last) {
+                        atualizarOutlookDaSondagem({
+                            cape: last.thermo.cape,
+                            cin: last.thermo.cin,
+                            shear06km: last.kinematics.shear06km
+                        });
+                    }
+                }
+            });
+        }
 
         const botaoAba = document.querySelector(
             '[onclick*="convective-tab"]'
