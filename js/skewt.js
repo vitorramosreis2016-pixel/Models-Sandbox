@@ -695,88 +695,82 @@ const ModelsSounding = (() => {
     function renderHodograph(sounding) {
         const el = $("hodograph-chart");
         if (!el || !window.Plotly) return;
-        const levels = sounding.levels.filter(level => level.height <= 12000);
-        const labels = levels.map(level => `${(level.height / 1000).toFixed(1)} km`);
-        const trace = {
-            type: "scatter", mode: "lines+markers+text",
-            x: levels.map(level => level.u),
-            y: levels.map(level => level.v),
-            text: levels.filter((_, i) => i % 5 === 0).map(level => `${(level.height / 1000).toFixed(0)}`),
-            textposition: "top center",
-            customdata: levels.map(level => [level.height, level.windSpeed, level.windDirection]),
-            hovertemplate: "%{customdata[0]:.0f} m<br>u=%{x:.1f} kt<br>v=%{y:.1f} kt<br>V=%{customdata[1]:.1f} kt<br>Dir=%{customdata[2]:.0f}°<extra></extra>",
-            line: { color: "#38bdf8", width: 2 },
-            marker: { color: levels.map(level => level.height), colorscale: "Turbo", size: 4, showscale: false }
-        };
+        const levels = sounding.levels.filter(level => level.height >= 0 && level.height <= 12000);
+        const bands = [
+            { min: 0, max: 3000, color: "#ef4444", name: "0–3 km" },
+            { min: 3000, max: 6000, color: "#22c55e", name: "3–6 km" },
+            { min: 6000, max: 9000, color: "#facc15", name: "6–9 km" },
+            { min: 9000, max: 12000, color: "#38bdf8", name: "9–12 km" }
+        ];
+        const traces = bands.map(band => {
+            const segment = levels.filter(level => level.height >= band.min && level.height <= band.max);
+            return {
+                type: "scatter", mode: "lines+markers",
+                name: band.name,
+                x: segment.map(level => level.u),
+                y: segment.map(level => level.v),
+                customdata: segment.map(level => [level.height, level.windSpeed, level.windDirection]),
+                hovertemplate: "%{customdata[0]:.0f} m<br>u=%{x:.1f} kt<br>v=%{y:.1f} kt<br>V=%{customdata[1]:.1f} kt<br>Direção=%{customdata[2]:.0f}°<extra></extra>",
+                line: { color: band.color, width: 3 },
+                marker: { color: band.color, size: 4 }
+            };
+        });
         const layout = {
             paper_bgcolor: "#121821", plot_bgcolor: "#121821",
-            margin: { l: 35, r: 8, t: 8, b: 30 },
-            showlegend: false, autosize: true,
+            margin: { l: 40, r: 8, t: 8, b: 34 },
+            showlegend: true, legend: { orientation: "h", y: -0.2, font: { size: 8, color: "#cbd5e1" } },
+            autosize: true,
             xaxis: { title: "u (kt)", zeroline: true, zerolinecolor: "#94a3b8", gridcolor: "#263244", color: "#cbd5e1" },
             yaxis: { title: "v (kt)", zeroline: true, zerolinecolor: "#94a3b8", gridcolor: "#263244", color: "#cbd5e1", scaleanchor: "x", scaleratio: 1 },
             font: { color: "#cbd5e1", size: 9 }
         };
-        window.Plotly.react(el, [trace], layout, { displayModeBar: false, responsive: true });
+        window.Plotly.react(el, traces, layout, { displayModeBar: false, responsive: true });
     }
 
-    function renderWindBarbs(sounding) {
-        const el = $("wind-barbs-chart");
-        if (!el || !window.Plotly) return;
+    function addWindBarbsToSkewT(sounding) {
+        const traces = [];
         const selectedPressures = [1000, 925, 850, 700, 500, 400, 300, 250, 200, 150, 100];
         const levels = selectedPressures.map(p => sounding.levels.reduce((best, level) =>
             Math.abs(level.pressure - p) < Math.abs(best.pressure - p) ? level : best
         ));
-        const traces = [];
+        // Barb symbols are drawn in a narrow gutter at the right side of the
+        // Skew-T in data coordinates; barb direction follows the meteorological
+        // wind-from convention and feathers encode speed in 5/10 kt increments.
         const xs = [], ys = [];
         levels.forEach(level => {
-            const z = level.height / 1000;
-            const speed = level.windSpeed;
-            // Shaft points toward the direction the wind is blowing to.
-            const angle = Math.atan2(level.v, level.u);
-            const dx = Math.cos(angle) * 0.28;
-            const dy = Math.sin(angle) * 0.28;
-            xs.push(level.u, level.u + dx, null);
-            ys.push(z, z + dy, null);
-            // Standardized-looking feathers: each 10 kt is a full barb,
-            // each 5 kt a half barb; speeds remain the underlying values.
-            let remaining = Math.round(speed / 5) * 5;
-            let along = 0;
-            while (remaining >= 5 && along < 0.55) {
-                const x0 = level.u + dx * (1 - along);
-                const y0 = z + dy * (1 - along);
-                const sign = level.v >= 0 ? 1 : -1;
-                const x1 = x0 - sign * 0.13;
-                const y1 = y0 + 0.20;
-                xs.push(x0, x1, null);
-                ys.push(y0, y1, null);
-                remaining -= remaining >= 10 ? 10 : 5;
-                along += 0.13;
+            const x = 78;
+            const y = level.pressure;
+            xs.push(x, x + 5, null);
+            ys.push(y, y, null);
+            const rounded = Math.round(level.windSpeed / 5) * 5;
+            let remaining = rounded;
+            let offset = 0;
+            while (remaining >= 5 && offset < 5) {
+                const full = remaining >= 10;
+                const length = full ? 3.3 : 2.0;
+                const x0 = x + 5 - offset;
+                const y0 = y;
+                xs.push(x0, x0 - length, null);
+                ys.push(y0, y0 - (full ? 13 : 8), null);
+                remaining -= full ? 10 : 5;
+                offset += full ? 1.4 : 1.0;
             }
+            // Hover target carries exact level and wind metadata.
+            traces.push({
+                type: "scatter", mode: "markers",
+                x: [x], y: [y],
+                marker: { size: 10, color: "rgba(0,0,0,0.01)" },
+                customdata: [[level.pressure, level.height, level.windSpeed, level.windDirection]],
+                hovertemplate: "%{customdata[0]:.0f} hPa · %{customdata[1]:.0f} m<br>%{customdata[2]:.0f} kt · direção %{customdata[3]:.0f}°<extra>Barbela</extra>",
+                showlegend: false
+            });
         });
-        traces.push({
+        traces.unshift({
             type: "scatter", mode: "lines", x: xs, y: ys,
-            line: { color: "#e2e8f0", width: 1.5 },
+            line: { color: "#f8fafc", width: 1.5 },
             hoverinfo: "skip", showlegend: false
         });
-        traces.push({
-            type: "scatter", mode: "markers+text",
-            x: levels.map(level => level.u),
-            y: levels.map(level => level.height / 1000),
-            text: levels.map(level => `${Math.round(level.pressure)}`),
-            textposition: "middle left",
-            customdata: levels.map(level => [level.pressure, level.windSpeed, level.windDirection]),
-            hovertemplate: "%{customdata[0]:.0f} hPa<br>%{customdata[1]:.0f} kt<br>Direção %{customdata[2]:.0f}°<extra></extra>",
-            marker: { color: "#22d3ee", size: 4 },
-            textfont: { color: "#94a3b8", size: 8 },
-            showlegend: false
-        });
-        window.Plotly.react(el, traces, {
-            paper_bgcolor: "#121821", plot_bgcolor: "#121821",
-            margin: { l: 35, r: 8, t: 8, b: 28 },
-            xaxis: { title: "u (kt)", gridcolor: "#263244", color: "#cbd5e1", zeroline: true, zerolinecolor: "#64748b" },
-            yaxis: { title: "Altura (km)", gridcolor: "#263244", color: "#cbd5e1", range: [0, 16] },
-            font: { color: "#cbd5e1", size: 9 }, showlegend: false, autosize: true
-        }, { displayModeBar: false, responsive: true });
+        return traces;
     }
 
     // --------------------------------------------------
@@ -894,6 +888,7 @@ const ModelsSounding = (() => {
             const thermo = calculateThermodynamics(sounding);
             const kinematics = calculateKinematics(sounding);
             const traces = buildSkewTTraces(sounding, thermo);
+            traces.push(...addWindBarbsToSkewT(sounding));
 
             lastSounding = {
                 sounding,
@@ -903,7 +898,6 @@ const ModelsSounding = (() => {
 
             renderSkewT(traces);
             renderHodograph(sounding);
-            renderWindBarbs(sounding);
             updateReadouts(sounding, thermo, kinematics);
 
             // Envia os diagnósticos recalculados para o Outlook automático.
