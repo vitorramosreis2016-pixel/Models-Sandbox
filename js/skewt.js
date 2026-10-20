@@ -177,7 +177,10 @@ const ModelsSounding = (() => {
             // Redução progressiva da umidade acima da camada
             // mais baixa. Isso é uma hipótese sintética,
             // não um perfil observado.
-            const upperDrying = Math.max(0, heightKm - 1.5) * 1.0;
+            // A secagem cresce com a altitude; não mantém a coluna
+            // artificialmente úmida nos níveis médios e altos.
+            const upperDrying = Math.max(0, heightKm - 1.0) * 1.8
+                + Math.max(0, heightKm - 4.0) * 0.8;
 
             let environmentalDewpoint =
                 dryDewpoint - upperDrying;
@@ -832,9 +835,23 @@ const ModelsSounding = (() => {
             renderSkewT(traces);
             updateReadouts(sounding, thermo, kinematics);
 
+            // Envia os diagnósticos recalculados para o Outlook automático.
+            window.dispatchEvent(new CustomEvent("models-sounding-updated", {
+                detail: {
+                    cape: thermo.cape,
+                    cin: thermo.cin,
+                    lcl: thermo.lcl.height,
+                    shear01km: kinematics.shear01km,
+                    shear03km: kinematics.shear03km,
+                    shear06km: kinematics.shear06km,
+                    surfaceTemp: sounding.surface.temp,
+                    surfaceDewpoint: sounding.surface.dewpoint
+                }
+            }));
+
             setText(
                 "sounding-status",
-                "SONDAGEM SINTÉTICA"
+                "SONDAGEM SINTÉTICA — Outlook recalculado"
             );
         } catch (error) {
             console.error(
@@ -897,6 +914,7 @@ const ModelsSounding = (() => {
         getLastSounding: () => lastSounding
     };
 })();
+window.ModelsSounding = ModelsSounding;
 
 // Compatibilidade com o nome usado pelo código anterior.
 function atualizarGraficoSkewT() {
