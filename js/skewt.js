@@ -242,7 +242,7 @@ const ModelsSounding = (() => {
         const { levels, surface, lcl } = sounding;
         const parcel = [];
         let previousParcelTemp = surface.temp;
-        let previousHeight = 0;
+        let previousHeight = Number.isFinite(surface.height) ? surface.height : 0;
         let previousPressure = surface.pressure;
 
         for (const level of levels) {
@@ -462,11 +462,31 @@ const ModelsSounding = (() => {
         };
     }
 
+    // Testa parcelas em níveis baixos para estimar a camada de entrada efetiva.
+    // Critérios operacionais: CAPE >= 100 J/kg e CIN >= -250 J/kg.
+    function calculateEffectiveInflowLayer(sounding) {
+        const candidates = sounding.levels.filter(level => level.height <= 3000).sort((a, b) => a.height - b.height);
+        const qualifying = [];
+        for (const launch of candidates) {
+            const dewpoint = Math.min(launch.dewpoint, launch.temp);
+            const candidate = {
+                levels: sounding.levels.filter(level => level.height >= launch.height),
+                surface: { temp: launch.temp, dewpoint, pressure: launch.pressure, height: launch.height, mixingRatio: mixingRatioFromDewpoint(dewpoint, launch.pressure) },
+                lcl: calculateLCL(launch.temp, dewpoint, launch.pressure)
+            };
+            if (candidate.levels.length < 2) continue;
+            const parcel = calculateParcelProfile(candidate);
+            const energy = calculateCAPEandCIN(candidate, parcel);
+            if (energy.cape >= 100 && energy.cin >= -250) qualifying.push({ height: launch.height, pressure: launch.pressure, cape: energy.cape, cin: energy.cin });
+        }
+        if (!qualifying.length) return null;
+        return { bottom: qualifying[0], top: qualifying[qualifying.length - 1], levels: qualifying };
+    }
     // --------------------------------------------------
     // 6. CINEMÁTICA DO VENTO
     // --------------------------------------------------
 
-    function calculateKinematics(sounding, thermo) {
+    function calculateKinematics(sounding, thermo, effectiveInflowLayer = null) {
         const levels = [...sounding.levels].sort((a, b) => a.height - b.height);
         const KNOT_TO_MS = 0.514444;
         // Convenção configurada para o Hemisfério Sul: SRH ciclônica negativa.
@@ -538,12 +558,16 @@ const ModelsSounding = (() => {
         const brnBulkShearMs = Math.hypot(mean06.u - mean05.u, mean06.v - mean05.v) * KNOT_TO_MS;
         const brnShear = 0.5 * brnBulkShearMs * brnBulkShearMs;
         const brn = cape !== null && brnShear > 0 ? cape / brnShear : null;
+        let ebwd = null;
+        if (effectiveInflowLayer) {
+            const baseWind = windAtHeight(effectiveInflowLayer.bottom.height);
+            const topWind = windAtHeight(effectiveInflowLayer.top.height);
+            ebwd = Math.hypot(topWind.u - baseWind.u, topWind.v - baseWind.v);
+        }
         return {
             shear01km: sh01.magnitude, shear03km: sh03.magnitude, shear06km: sh06.magnitude,
             meanWind06km: meanInfo, bunkersRight, bunkersLeft, srh01km, srh03km,
-            ehi01km, ehi03km, brn, brnShear,
-            // EBWD depende da camada de entrada efetiva, ainda não diagnosticada pelo motor.
-            ebwd: null,
+            ehi01km, ehi03km, brn, brnShear, ebwd, effectiveInflowLayer,
             levels: [{ label: "Superfície", level: sfc }, { label: "1 km", level: w1 },
                 { label: "3 km", level: w3 }, { label: "6 km", level: w6 }]
         };
@@ -949,7 +973,12 @@ const ModelsSounding = (() => {
         setText("idx-ehi", `0–1 km: ${round(kinematics.ehi01km, 2)} · 0–3 km: ${round(kinematics.ehi03km, 2)}`);
         setText("idx-brn", kinematics.brn === null ? "N/D" : round(kinematics.brn, 1));
         setText("idx-brn-shear", Number.isFinite(kinematics.brnShear) ? `${round(kinematics.brnShear, 1)} m²/s²` : "N/D");
-        setIndexUnavailable("idx-ebwd");
+        if (kinematics.ebwd === null) setIndexUnavailable("idx-ebwd");
+        else setText("idx-ebwd", `${round(kinematics.ebwd, 1)} kt`);
+        if (kinematics.effectiveInflowLayer) {
+            const layer = kinematics.effectiveInflowLayer;
+            setText("idx-effective-layer", `${round(layer.bottom.pressure, 0)}–${round(layer.top.pressure, 0)} hPa (${round(layer.bottom.height, 0)}–${round(layer.top.height, 0)} m)`);
+        } else setIndexUnavailable("idx-effective-layer");
         setIndexUnavailable("idx-stp");
         setIndexUnavailable("idx-scp");
     }
@@ -990,7 +1019,8 @@ const ModelsSounding = (() => {
 
             const sounding = generateSounding(params);
             const thermo = calculateThermodynamics(sounding);
-            const kinematics = calculateKinematics(sounding, thermo);
+            const effectiveInflowLayer = calculateEffectiveInflowLayer(sounding);
+            const kinematics = calculateKinematics(sounding, thermo, effectiveInflowLayer);
             const traces = buildSkewTTraces(sounding, thermo);
             traces.push(...addWindBarbsToSkewT(sounding));
 
