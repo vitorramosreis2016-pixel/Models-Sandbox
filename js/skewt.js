@@ -350,7 +350,6 @@ const ModelsSounding = (() => {
                 const zCross = a.height + fraction * dz;
                 const pCross = a.pressure + fraction * (b.pressure - a.pressure);
                 cape += 0.5 * ba * (zCross - a.height);
-                cin += 0.5 * bb * (b.height - zCross);
                 if (positiveLayerStarted && equilibriumLevel === null) {
                     equilibriumLevel = pCross;
                 }
@@ -360,7 +359,7 @@ const ModelsSounding = (() => {
                     cape += meanB * dz;
                     if (lfc === null) lfc = a.pressure;
                     positiveLayerStarted = true;
-                } else {
+                } else if (!positiveLayerStarted) {
                     cin += meanB * dz;
                 }
             }
