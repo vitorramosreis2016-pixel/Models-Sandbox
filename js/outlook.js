@@ -548,6 +548,23 @@
     function usedCape(dados) { return Number(dados.cape) || 0; }
     function usedCin(dados) { return Number(dados.cin) || 0; }
 
+    function dadosDoUltimoPerfil(last) {
+        if (!last?.thermo || !last?.kinematics) return null;
+        return {
+            cape: last.thermo.cape,
+            cin: last.thermo.cin,
+            lcl: last.thermo.lcl?.height,
+            shear01km: last.kinematics.shear01km,
+            shear03km: last.kinematics.shear03km,
+            shear06km: last.kinematics.shear06km,
+            srh01km: last.kinematics.srh01km,
+            srh03km: last.kinematics.srh03km,
+            precipitableWater: last.thermo.precipitableWater,
+            kIndex: last.thermo.kIndex,
+            totalTotals: last.thermo.totalTotals
+        };
+    }
+
     function iniciar() {
         criarInterface();
 
@@ -567,15 +584,9 @@
         const modoOutlook = $("outlook-mode");
         if (modoOutlook) {
             modoOutlook.addEventListener("change", () => {
-                if (modoOutlook.value === "auto" && window.ModelsSounding?.getLastSounding) {
-                    const last = window.ModelsSounding.getLastSounding();
-                    if (last) {
-                        atualizarOutlookDaSondagem({
-                            cape: last.thermo.cape,
-                            cin: last.thermo.cin,
-                            shear06km: last.kinematics.shear06km
-                        });
-                    }
+                if (window.ModelsSounding?.getLastSounding) {
+                    const dados = dadosDoUltimoPerfil(window.ModelsSounding.getLastSounding());
+                    if (dados) atualizarOutlookDaSondagem(dados);
                 }
             });
         }
@@ -588,6 +599,13 @@
             botaoAba.addEventListener("click", () => {
                 setTimeout(iniciarMapa, 150);
             });
+        }
+
+        // O Skew-T pode ter emitido a primeira atualização antes deste listener
+        // existir; recupera a última sondagem para preencher o painel no início.
+        if (window.ModelsSounding?.getLastSounding) {
+            const dados = dadosDoUltimoPerfil(window.ModelsSounding.getLastSounding());
+            if (dados) atualizarOutlookDaSondagem(dados);
         }
 
         // Também suporta abrir a aba por outros meios.
