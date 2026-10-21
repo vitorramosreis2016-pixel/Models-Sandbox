@@ -591,8 +591,12 @@ const ModelsSounding = (() => {
 
             // Approximate 0–500-m mixed-layer parcel using the model's
             // synthetic profile. These are model diagnostics, not observed data.
-            const mlPoints = layerPoints(0, 500);
-            if (mlPoints.length >= 2) {
+            const mlPoints = [
+                { height: 0, temp: interpolateByHeight(levels, 0, "temp"), dewpoint: interpolateByHeight(levels, 0, "dewpoint") },
+                ...levels.filter(level => level.height > 0 && level.height < 500).map(level => ({ height: level.height, temp: level.temp, dewpoint: level.dewpoint })),
+                { height: 500, temp: interpolateByHeight(levels, 500, "temp"), dewpoint: interpolateByHeight(levels, 500, "dewpoint") }
+            ].sort((a, b) => a.height - b.height);
+            if (mlPoints.length >= 2 && mlPoints.every(p => Number.isFinite(p.temp) && Number.isFinite(p.dewpoint))) {
                 let tSum = 0, tdSum = 0, zSum = 0;
                 for (let i = 1; i < mlPoints.length; i++) {
                     const a = mlPoints[i - 1], b = mlPoints[i];
