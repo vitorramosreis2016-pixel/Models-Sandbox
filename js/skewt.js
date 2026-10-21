@@ -141,14 +141,15 @@ const ModelsSounding = (() => {
 
         const lcl = calculateLCL(temp, surfaceDewpoint, surfacePressure);
 
-        // A synthetic environmental profile with a user-controlled
-        // low-level lapse rate, a modest mid-level cap, and renewed
-        // cooling aloft. It is a scenario profile, not observed data.
+        // Synthetic environmental temperature profile. Apply the user's
+        // selected lapse rate through the lower/middle troposphere (surface
+        // to 3.5 km), rather than only the first 1.5 km; above 3.5 km use
+        // a standard-like 6.5 C/km rate. This keeps the control meaningful
+        // for instability experiments while remaining an idealized profile.
         function environmentalTemperature(heightKm) {
-            const z1 = Math.min(heightKm, 1.5);
-            const z2 = Math.max(0, Math.min(heightKm - 1.5, 2.0));
-            const z3 = Math.max(0, heightKm - 3.5);
-            return temp - lapse * z1 - 4.0 * z2 - 6.5 * z3;
+            const zUser = Math.min(Math.max(0, heightKm), 3.5);
+            const zUpper = Math.max(0, heightKm - 3.5);
+            return temp - lapse * zUser - 6.5 * zUpper;
         }
 
         // Reduce mixing ratio with height to create a physically clearer
