@@ -558,16 +558,26 @@ const ModelsSounding = (() => {
         const brnBulkShearMs = Math.hypot(mean06.u - mean05.u, mean06.v - mean05.v) * KNOT_TO_MS;
         const brnShear = 0.5 * brnBulkShearMs * brnBulkShearMs;
         const brn = cape !== null && brnShear > 0 ? cape / brnShear : null;
+        // EBWD: vetor de cisalhamento entre a base da camada de entrada efetiva
+        // e o topo da camada efetiva de cisalhamento (50% da altura do EL,
+        // limitado a 6 km AGL). Não usar o topo da própria inflow layer.
         let ebwd = null;
-        if (effectiveInflowLayer) {
-            const baseWind = windAtHeight(effectiveInflowLayer.bottom.height);
-            const topWind = windAtHeight(effectiveInflowLayer.top.height);
-            ebwd = Math.hypot(topWind.u - baseWind.u, topWind.v - baseWind.v);
+        let ebwdLayer = null;
+        if (effectiveInflowLayer && Number.isFinite(thermo?.equilibriumLevel)) {
+            const elHeight = pressureToHeight(thermo.equilibriumLevel);
+            const ebwdTop = Math.min(6000, elHeight * 0.5);
+            const ebwdBottom = effectiveInflowLayer.bottom.height;
+            if (Number.isFinite(ebwdTop) && ebwdTop > ebwdBottom) {
+                const baseWind = windAtHeight(ebwdBottom);
+                const topWind = windAtHeight(ebwdTop);
+                ebwd = Math.hypot(topWind.u - baseWind.u, topWind.v - baseWind.v);
+                ebwdLayer = { bottom: ebwdBottom, top: ebwdTop, elHeight };
+            }
         }
         return {
             shear01km: sh01.magnitude, shear03km: sh03.magnitude, shear06km: sh06.magnitude,
             meanWind06km: meanInfo, bunkersRight, bunkersLeft, srh01km, srh03km,
-            ehi01km, ehi03km, brn, brnShear, ebwd, effectiveInflowLayer,
+            ehi01km, ehi03km, brn, brnShear, ebwd, ebwdLayer, effectiveInflowLayer,
             levels: [{ label: "Superfície", level: sfc }, { label: "1 km", level: w1 },
                 { label: "3 km", level: w3 }, { label: "6 km", level: w6 }]
         };
