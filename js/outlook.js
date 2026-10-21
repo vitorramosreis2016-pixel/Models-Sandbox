@@ -438,30 +438,96 @@
         status("Cenário sintético criado. Não representa uma previsão oficial do NWS / SPC.");
     }
 
+    let ultimaSondagem = null;
+
+    // Perfis de sensibilidade para o sandbox. Não são previsões dos modelos reais.
+    const PERFIS_MODELO = {
+        HRRR: { nome: "HRRR-like · resposta rápida", cape: 1.12, cin: 0.88, shear: 1.05, pw: 1.03,
+            descricao: "Realça a resposta convectiva de curto prazo neste experimento." },
+        GFS: { nome: "GFS-like · referência", cape: 1.00, cin: 1.00, shear: 1.00, pw: 1.00,
+            descricao: "Usa o ambiente sintético sem ajuste adicional." },
+        ECMWF: { nome: "ECMWF-like · conservador", cape: 0.90, cin: 1.15, shear: 0.98, pw: 0.97,
+            descricao: "Aplica uma resposta convectiva mais conservadora para comparação." },
+        ENSEMBLE: { nome: "Ensemble conceitual", cape: 1.00, cin: 1.00, shear: 1.00, pw: 1.00,
+            descricao: "Mostra uma faixa de sensibilidade em torno do ambiente-base, não membros reais." }
+    };
+
     function nivelPorSondagem(dados) {
         const cape = Math.max(0, Number(dados.cape) || 0);
         const cin = Number(dados.cin) || 0;
         const shear = Math.max(0, Number(dados.shear06km) || 0);
-
-        // Regras heurísticas para cenário sintético, não previsão operacional.
         if (cape < 500 || cin < -200) return "TSTM";
         let nivel = cape >= 3500 ? "HIGH"
             : cape >= 2500 ? "MDT"
             : cape >= 1800 ? "ENH"
             : cape >= 1000 ? "SLGT"
             : "MRGL";
-
         if (shear >= 40 && nivel === "SLGT") nivel = "ENH";
         else if (shear >= 30 && nivel === "MRGL") nivel = "SLGT";
         return nivel;
     }
 
+    function dadosDoPerfil(dados, perfil) {
+        const baseCape = Math.max(0, Number(dados.cape) || 0);
+        const baseCin = Math.min(0, Number(dados.cin) || 0);
+        const baseShear = Math.max(0, Number(dados.shear06km) || 0);
+        const basePw = Math.max(0, Number(dados.precipitableWater) || 0);
+        return {
+            cape: baseCape * perfil.cape,
+            cin: baseCin * perfil.cin,
+            shear06km: baseShear * perfil.shear,
+            precipitableWater: basePw * perfil.pw,
+            srh01km: Number(dados.srh01km) || 0,
+            srh03km: Number(dados.srh03km) || 0
+        };
+    }
+
+    function cardModelo(rotulo, valor, detalhe) {
+        return `<div style="background:#1e293b;border:1px solid #334155;border-radius:7px;padding:11px;">
+            <div style="font-size:.75rem;color:#94a3b8;margin-bottom:6px;">${rotulo}</div>
+            <div style="font-size:1.15rem;font-weight:700;color:#f8fafc;">${valor}</div>
+            <div style="font-size:.72rem;color:#94a3b8;margin-top:5px;">${detalhe}</div>
+        </div>`;
+    }
+
+    function renderizarPainelModelo(dados) {
+        const select = $("model-select");
+        const perfil = PERFIS_MODELO[select?.value] || PERFIS_MODELO.HRRR;
+        const estado = $("model-lab-state");
+        const resumo = $("model-lab-summary");
+        const resultados = $("model-lab-results");
+        const nota = $("model-lab-note");
+        if (!resultados) return;
+
+        const calculados = dadosDoPerfil(dados, perfil);
+        const risco = nivelPorSondagem(calculados);
+        const riscoNomes = { TSTM: "Trovoadas", MRGL: "Marginal", SLGT: "Leve", ENH: "Elevado", MDT: "Moderado", HIGH: "Alto" };
+
+        if (estado) estado.textContent = `Perfil ativo: ${perfil.nome}`;
+        if (resumo) resumo.textContent = `${perfil.descricao} Categoria diagnóstica: ${riscoNomes[risco] || risco}. Alterar os controles da sondagem recalcula esta resposta.`;
+        resultados.innerHTML = [
+            cardModelo("CAPE ajustado", `${Math.round(calculados.cape)} J/kg`, `Base: ${Math.round(Number(dados.cape) || 0)} J/kg`),
+            cardModelo("CIN ajustado", `${Math.round(calculados.cin)} J/kg`, `Base: ${Math.round(Number(dados.cin) || 0)} J/kg`),
+            cardModelo("Shear 0–6 km", `${calculados.shear06km.toFixed(1)} kt`, `Base: ${(Number(dados.shear06km) || 0).toFixed(1)} kt`),
+            cardModelo("Água precipitável", `${calculados.precipitableWater.toFixed(1)} mm`, "Estimativa do perfil sintético"),
+            cardModelo("SRH 0–1 km", `${calculados.srh01km.toFixed(0)} m²/s²`, "Convenção de sinal do projeto"),
+            cardModelo("Diagnóstico convectivo", risco, riscoNomes[risco] || risco)
+        ].join("");
+        if (nota) nota.textContent = select?.value === "ENSEMBLE"
+            ? "Ensemble conceitual: faixa de sensibilidade de CAPE ±25% e CIN entre 0,75× e 1,25×. Não são membros nem probabilidades de um ensemble operacional."
+            : "Perfil de sensibilidade heurístico aplicado à sondagem sintética. HRRR/GFS/ECMWF são apenas analogias de comportamento aqui; o site não está executando esses modelos numéricos nem usando suas previsões.";
+        return { perfil, calculados, risco };
+    }
+
     function atualizarOutlookDaSondagem(dados) {
+        ultimaSondagem = { ...dados };
+        const diagnostico = renderizarPainelModelo(dados);
         const modo = $("outlook-mode");
         if (!mapa || !camadaRiscos || (modo && modo.value !== "auto")) return;
 
         camadaRiscos.clearLayers();
-        const nivel = nivelPorSondagem(dados);
+        const usados = diagnostico?.calculados || dados;
+        const nivel = diagnostico?.risco || nivelPorSondagem(dados);
         const centro = mapa.getCenter();
         const lat = centro.lat;
         const lon = centro.lng;
@@ -475,9 +541,12 @@
             [lat + raio * 0.2, lon - raio * 1.3]
         ];
         adicionarPoligono(pontos, nivel,
-            `Sondagem sintética: CAPE ${Math.round(dados.cape)} J/kg; CIN ${Math.round(dados.cin)} J/kg; shear 0–6 km ${Math.round(dados.shear06km)} kt. Não é previsão real.`);
-        status(`Outlook automático atualizado pela sondagem: ${nivel} · CAPE ${Math.round(dados.cape)} J/kg · CIN ${Math.round(dados.cin)} J/kg.`);
+            `${diagnostico?.perfil.nome || "Sondagem sintética"}: CAPE ${Math.round(usedCape(usados))} J/kg; CIN ${Math.round(usedCin(usados))} J/kg; shear 0–6 km ${Math.round(Number(usados.shear06km) || 0)} kt. Cenário conceitual, não previsão real.`);
+        status(`Outlook conceitual atualizado: ${nivel} · CAPE ${Math.round(usedCape(usados))} J/kg · shear ${Math.round(Number(usados.shear06km) || 0)} kt.`);
     }
+
+    function usedCape(dados) { return Number(dados.cape) || 0; }
+    function usedCin(dados) { return Number(dados.cin) || 0; }
 
     function iniciar() {
         criarInterface();
@@ -485,6 +554,15 @@
         window.addEventListener("models-sounding-updated", evento => {
             atualizarOutlookDaSondagem(evento.detail || {});
         });
+
+        const seletorModelo = $("model-select");
+        if (seletorModelo) {
+            seletorModelo.addEventListener("change", () => {
+                if (ultimaSondagem) atualizarOutlookDaSondagem(ultimaSondagem);
+            });
+        }
+
+        if (ultimaSondagem) renderizarPainelModelo(ultimaSondagem);
 
         const modoOutlook = $("outlook-mode");
         if (modoOutlook) {
