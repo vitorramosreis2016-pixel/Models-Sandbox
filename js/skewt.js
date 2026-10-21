@@ -480,7 +480,14 @@ const ModelsSounding = (() => {
             if (energy.cape >= 100 && energy.cin >= -250) qualifying.push({ height: launch.height, pressure: launch.pressure, cape: energy.cape, cin: energy.cin });
         }
         if (!qualifying.length) return null;
-        return { bottom: qualifying[0], top: qualifying[qualifying.length - 1], levels: qualifying };
+        // Keep only the contiguous qualifying layer connected to the lowest
+        // qualifying parcel; isolated elevated pockets do not define the EIL.
+        let contiguous = [qualifying[0]];
+        for (let i = 1; i < qualifying.length; i++) {
+            if (qualifying[i].height - qualifying[i - 1].height > 1.6 * PRESSURE_STEP * 44330 * 0.190284 / 1000) break;
+            contiguous.push(qualifying[i]);
+        }
+        return { bottom: contiguous[0], top: contiguous[contiguous.length - 1], levels: contiguous };
     }
     // --------------------------------------------------
     // 6. CINEMÁTICA DO VENTO
@@ -558,26 +565,86 @@ const ModelsSounding = (() => {
         const brnBulkShearMs = Math.hypot(mean06.u - mean05.u, mean06.v - mean05.v) * KNOT_TO_MS;
         const brnShear = 0.5 * brnBulkShearMs * brnBulkShearMs;
         const brn = cape !== null && brnShear > 0 ? cape / brnShear : null;
-        // EBWD: vetor de cisalhamento entre a base da camada de entrada efetiva
-        // e o topo da camada efetiva de cisalhamento (50% da altura do EL,
-        // limitado a 6 km AGL). Não usar o topo da própria inflow layer.
+        // Effective shear layer: from the effective inflow base to 50% of
+        // the equilibrium-level height, capped at 6 km AGL. Winds are kt here.
         let ebwd = null;
         let ebwdLayer = null;
-        if (effectiveInflowLayer && Number.isFinite(thermo?.equilibriumLevel)) {
-            const elHeight = pressureToHeight(thermo.equilibriumLevel);
-            const ebwdTop = Math.min(6000, elHeight * 0.5);
+        let effectiveSrh = null;
+        let scp = null;
+        let stp = null;
+        let mlcape = null;
+        let mlcin = null;
+        if (effectiveInflowLayer) {
             const ebwdBottom = effectiveInflowLayer.bottom.height;
+            const elHeight = Number.isFinite(thermo?.equilibriumLevel)
+                ? pressureToHeight(thermo.equilibriumLevel) : NaN;
+            // If EL is unavailable, use a documented 6-km cap rather than
+            // silently substituting the top of the inflow layer.
+            const ebwdTop = Number.isFinite(elHeight) ? Math.min(6000, elHeight * 0.5) : 6000;
             if (Number.isFinite(ebwdTop) && ebwdTop > ebwdBottom) {
                 const baseWind = windAtHeight(ebwdBottom);
                 const topWind = windAtHeight(ebwdTop);
                 ebwd = Math.hypot(topWind.u - baseWind.u, topWind.v - baseWind.v);
                 ebwdLayer = { bottom: ebwdBottom, top: ebwdTop, elHeight };
+                effectiveSrh = srh(ebwdBottom, ebwdTop, bunkersRight);
+            }
+
+            // Approximate 0–500-m mixed-layer parcel using the model's
+            // synthetic profile. These are model diagnostics, not observed data.
+            const mlPoints = layerPoints(0, 500);
+            if (mlPoints.length >= 2) {
+                let tSum = 0, tdSum = 0, zSum = 0;
+                for (let i = 1; i < mlPoints.length; i++) {
+                    const a = mlPoints[i - 1], b = mlPoints[i];
+                    const dz = b.height - a.height;
+                    tSum += (a.temp + b.temp) * 0.5 * dz;
+                    tdSum += (a.dewpoint + b.dewpoint) * 0.5 * dz;
+                    zSum += dz;
+                }
+                if (zSum > 0) {
+                    const mlTemp = tSum / zSum;
+                    const mlDewpoint = Math.min(mlTemp, tdSum / zSum);
+                    const mlSurface = {
+                        temp: mlTemp, dewpoint: mlDewpoint, pressure: 1000, height: 0,
+                        mixingRatio: mixingRatioFromDewpoint(mlDewpoint, 1000)
+                    };
+                    const mlSounding = {
+                        levels: sounding.levels, surface: mlSurface,
+                        lcl: calculateLCL(mlTemp, mlDewpoint, 1000)
+                    };
+                    const mlParcel = calculateParcelProfile(mlSounding);
+                    const mlEnergy = calculateCAPEandCIN(mlSounding, mlParcel);
+                    mlcape = mlEnergy.cape;
+                    mlcin = mlEnergy.cin;
+                }
+            }
+            const effectiveShearMs = ebwd === null ? null : ebwd * KNOT_TO_MS;
+            // SCP: MUCAPE/1000 × effective SRH/50 × effective shear/20 m/s.
+            // The current parcel engine provides surface CAPE; do not mislabel it MUCAPE.
+            const capeForComposite = cape;
+            if (capeForComposite !== null && effectiveSrh !== null && effectiveShearMs !== null) {
+                scp = (capeForComposite / 1000) * (effectiveSrh / 50) * (effectiveShearMs / 20);
+            }
+            // Fixed-layer significant tornado parameter, using computed 0–500-m
+            // mixed-layer CAPE/CIN, effective SRH, LCL and effective shear.
+            if (mlcape !== null && mlcin !== null && effectiveSrh !== null && effectiveShearMs !== null) {
+                const capeFactor = clamp(mlcape / 1500, 0, 1.5);
+                const lclHeight = calculateLCL(
+                    mlPoints.length ? (mlPoints[0].temp + mlPoints[mlPoints.length - 1].temp) / 2 : sounding.surface.temp,
+                    mlPoints.length ? (mlPoints[0].dewpoint + mlPoints[mlPoints.length - 1].dewpoint) / 2 : sounding.surface.dewpoint,
+                    1000
+                ).height;
+                const lclFactor = clamp((2000 - lclHeight) / 1000, 0, 1);
+                const srhFactor = effectiveSrh / 150;
+                const shearFactor = clamp(effectiveShearMs / 20, 0, 1.5);
+                const cinFactor = mlcin > -50 ? 1 : mlcin > -200 ? (200 + mlcin) / 150 : 0;
+                stp = capeFactor * lclFactor * srhFactor * shearFactor * cinFactor;
             }
         }
         return {
             shear01km: sh01.magnitude, shear03km: sh03.magnitude, shear06km: sh06.magnitude,
             meanWind06km: meanInfo, bunkersRight, bunkersLeft, srh01km, srh03km,
-            ehi01km, ehi03km, brn, brnShear, ebwd, ebwdLayer, effectiveInflowLayer,
+            ehi01km, ehi03km, brn, brnShear, ebwd, ebwdLayer, effectiveSrh, mlcape, mlcin, stp, scp, effectiveInflowLayer,
             levels: [{ label: "Superfície", level: sfc }, { label: "1 km", level: w1 },
                 { label: "3 km", level: w3 }, { label: "6 km", level: w6 }]
         };
@@ -989,8 +1056,16 @@ const ModelsSounding = (() => {
             const layer = kinematics.effectiveInflowLayer;
             setText("idx-effective-layer", `${round(layer.bottom.pressure, 0)}–${round(layer.top.pressure, 0)} hPa (${round(layer.bottom.height, 0)}–${round(layer.top.height, 0)} m)`);
         } else setIndexUnavailable("idx-effective-layer");
-        setIndexUnavailable("idx-stp");
-        setIndexUnavailable("idx-scp");
+        if (Number.isFinite(kinematics.stp)) {
+            setText("idx-stp", round(kinematics.stp, 2));
+        } else {
+            setIndexUnavailable("idx-stp");
+        }
+        if (Number.isFinite(kinematics.scp)) {
+            setText("idx-scp", round(kinematics.scp, 2));
+        } else {
+            setIndexUnavailable("idx-scp");
+        }
     }
 
     function validateInputs(params) {
