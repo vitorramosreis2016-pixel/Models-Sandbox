@@ -402,9 +402,81 @@ const ModelsSounding = (() => {
         };
     }
 
+    function interpolateByPressure(levels, pressure, property) {
+        const sorted = [...levels].sort((a, b) => b.pressure - a.pressure);
+        if (pressure >= sorted[0].pressure) return sorted[0][property];
+        if (pressure <= sorted[sorted.length - 1].pressure) return sorted[sorted.length - 1][property];
+
+        for (let i = 1; i < sorted.length; i++) {
+            const a = sorted[i - 1];
+            const b = sorted[i];
+            if (a.pressure >= pressure && b.pressure <= pressure) {
+                const fraction = (a.pressure - pressure) / (a.pressure - b.pressure);
+                return a[property] + fraction * (b[property] - a[property]);
+            }
+        }
+        return NaN;
+    }
+
+    function interpolateByHeight(levels, height, property) {
+        const sorted = [...levels].sort((a, b) => a.height - b.height);
+        if (height <= sorted[0].height) return sorted[0][property];
+        if (height >= sorted[sorted.length - 1].height) return sorted[sorted.length - 1][property];
+
+        for (let i = 1; i < sorted.length; i++) {
+            const a = sorted[i - 1];
+            const b = sorted[i];
+            if (a.height <= height && b.height >= height) {
+                const fraction = (height - a.height) / (b.height - a.height);
+                return a[property] + fraction * (b[property] - a[property]);
+            }
+        }
+        return NaN;
+    }
+
+    function calculateEnvironmentalDiagnostics(sounding, parcel) {
+        const levels = sounding.levels;
+        const t850 = interpolateByPressure(levels, 850, "temp");
+        const td850 = interpolateByPressure(levels, 850, "dewpoint");
+        const t700 = interpolateByPressure(levels, 700, "temp");
+        const td700 = interpolateByPressure(levels, 700, "dewpoint");
+        const t500 = interpolateByPressure(levels, 500, "temp");
+        const parcel500 = interpolateByPressure(parcel, 500, "temp");
+
+        // Integrate mixing ratio through pressure depth; kg/m² is numerically mm of water.
+        let precipitableWater = 0;
+        const pressureOrdered = [...levels].sort((a, b) => b.pressure - a.pressure);
+        for (let i = 1; i < pressureOrdered.length; i++) {
+            const a = pressureOrdered[i - 1];
+            const b = pressureOrdered[i];
+            const ra = mixingRatioFromDewpoint(a.dewpoint, a.pressure);
+            const rb = mixingRatioFromDewpoint(b.dewpoint, b.pressure);
+            precipitableWater += ((ra + rb) / 2) * ((a.pressure - b.pressure) * 100) / G;
+        }
+
+        const tSurface = interpolateByHeight(levels, 0, "temp");
+        const t3km = interpolateByHeight(levels, 3000, "temp");
+        const t6km = interpolateByHeight(levels, 6000, "temp");
+        const t850Height = pressureToHeight(850);
+        const t700Height = pressureToHeight(700);
+        const t500Height = pressureToHeight(500);
+
+        return {
+            liftedIndex500: Number.isFinite(parcel500) ? t500 - parcel500 : null,
+            precipitableWater: precipitableWater * 1000,
+            kIndex: t850 - t500 + td850 - (t700 - td700),
+            totalTotals: t850 + td850 - 2 * t500,
+            lapseSurface3km: (tSurface - t3km) / 3,
+            lapse3to6km: (t3km - t6km) / 3,
+            lapse850to500: (t850 - t500) / ((t500Height - t850Height) / 1000),
+            lapse700to500: (t700 - t500) / ((t500Height - t700Height) / 1000)
+        };
+    }
+
     function calculateThermodynamics(sounding) {
         const parcel = calculateParcelProfile(sounding);
         const energy = calculateCAPEandCIN(sounding, parcel);
+        const diagnostics = calculateEnvironmentalDiagnostics(sounding, parcel);
 
         return {
             lcl: sounding.lcl,
@@ -413,7 +485,8 @@ const ModelsSounding = (() => {
             cin: energy.cin,
             lfc: energy.lfc,
             equilibriumLevel: energy.equilibriumLevel,
-            buoyancies: energy.buoyancies
+            buoyancies: energy.buoyancies,
+            ...diagnostics
         };
     }
 
@@ -822,6 +895,15 @@ const ModelsSounding = (() => {
             `${round(kinematics.shear06km, 1)} kt`
         );
 
+        setText("idx-li", thermo.liftedIndex500 === null ? "N/D" : `${round(thermo.liftedIndex500, 1)} °C`);
+        setText("idx-pw", `${round(thermo.precipitableWater, 1)} mm`);
+        setText("idx-k", `${round(thermo.kIndex, 1)} °C`);
+        setText("idx-tt", `${round(thermo.totalTotals, 1)} °C`);
+        setText("lapse-sfc3", `${round(thermo.lapseSurface3km, 2)} °C/km`);
+        setText("lapse-3to6", `${round(thermo.lapse3to6km, 2)} °C/km`);
+        setText("lapse-850500", `${round(thermo.lapse850to500, 2)} °C/km`);
+        setText("lapse-700500", `${round(thermo.lapse700to500, 2)} °C/km`);
+
         // Atualiza os IDs usados pela interface antiga.
         const windMap = {
             "v-850": 850,
@@ -909,6 +991,10 @@ const ModelsSounding = (() => {
                     shear01km: kinematics.shear01km,
                     shear03km: kinematics.shear03km,
                     shear06km: kinematics.shear06km,
+                    liftedIndex500: thermo.liftedIndex500,
+                    precipitableWater: thermo.precipitableWater,
+                    kIndex: thermo.kIndex,
+                    totalTotals: thermo.totalTotals,
                     surfaceTemp: sounding.surface.temp,
                     surfaceDewpoint: sounding.surface.dewpoint
                 }
