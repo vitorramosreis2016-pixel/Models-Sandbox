@@ -62,7 +62,7 @@ const ModelsSounding = (() => {
     function pressureToHeight(pressure) {
         // Aproximação de altura geopotencial pela atmosfera padrão.
         return 44330 * (
-            1 - Math.pow(pressure / 1013.25, 0.190284)
+            1 - Math.pow(pressure / 1000, 0.190284)
         );
     }
 
@@ -463,7 +463,7 @@ const ModelsSounding = (() => {
 
         return {
             liftedIndex500: Number.isFinite(parcel500) ? t500 - parcel500 : null,
-            precipitableWater: precipitableWater * 1000,
+            precipitableWater,
             kIndex: t850 - t500 + td850 - (t700 - td700),
             totalTotals: t850 + td850 - 2 * t500,
             lapseSurface3km: (tSurface - t3km) / 3,
