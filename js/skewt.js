@@ -466,43 +466,26 @@ const ModelsSounding = (() => {
     // 6. CINEMÁTICA DO VENTO
     // --------------------------------------------------
 
-    function calculateKinematics(sounding) {
-        const levels = sounding.levels;
-
-        function nearestLevel(targetHeight) {
-            return levels.reduce((best, level) =>
-                Math.abs(level.height - targetHeight) <
-                Math.abs(best.height - targetHeight)
-                    ? level
-                    : best
-            );
+    function calculateKinematics(sounding, thermo) {
+        const levels = [...sounding.levels].sort((a,b)=>a.height-b.height);
+        function windAtHeight(height) {
+            if(height<=levels[0].height) return {...levels[0],height};
+            if(height>=levels[levels.length-1].height) return {...levels[levels.length-1],height};
+            for(let i=1;i<levels.length;i++){const a=levels[i-1],b=levels[i];if(a.height<=height&&b.height>=height){const f=(height-a.height)/(b.height-a.height);return {height,pressure:a.pressure+f*(b.pressure-a.pressure),u:a.u+f*(b.u-a.u),v:a.v+f*(b.v-a.v),windSpeed:a.windSpeed+f*(b.windSpeed-a.windSpeed),windDirection:a.windDirection+f*(b.windDirection-a.windDirection)};}}
+            return {...levels[levels.length-1],height};
         }
-
-        const surface = nearestLevel(0);
-        const level1km = nearestLevel(1000);
-        const level3km = nearestLevel(3000);
-        const level6km = nearestLevel(6000);
-
-        function shearMagnitude(a, b) {
-            return Math.hypot(
-                b.u - a.u,
-                b.v - a.v
-            );
-        }
-
-        return {
-            shear01km: shearMagnitude(surface, level1km),
-            shear03km: shearMagnitude(surface, level3km),
-            shear06km: shearMagnitude(surface, level6km),
-            levels: [
-                { label: "Superfície", level: surface },
-                { label: "1 km", level: level1km },
-                { label: "3 km", level: level3km },
-                { label: "6 km", level: level6km }
-            ]
-        };
+        function shear(a,b){return {u:b.u-a.u,v:b.v-a.v,magnitude:Math.hypot(b.u-a.u,b.v-a.v)};}
+        function meanWind(bottom,top){const p=[windAtHeight(bottom),...levels.filter(x=>x.height>bottom&&x.height<top),windAtHeight(top)].sort((a,b)=>a.height-b.height);let ui=0,vi=0,d=0;for(let i=1;i<p.length;i++){const dz=p[i].height-p[i-1].height;ui+=(p[i-1].u+p[i].u)*0.5*dz;vi+=(p[i-1].v+p[i].v)*0.5*dz;d+=dz;}return {u:ui/d,v:vi/d};}
+        const sfc=windAtHeight(0),w1=windAtHeight(1000),w3=windAtHeight(3000),w6=windAtHeight(6000);
+        const sh01=shear(sfc,w1),sh03=shear(sfc,w3),sh06=shear(sfc,w6),mean06=meanWind(0,6000);
+        const du=sh06.u*0.514444,dv=sh06.v*0.514444,norm=Math.hypot(du,dv),offset=7.5/0.514444;
+        const right=norm>0?{u:mean06.u+offset*dv/norm,v:mean06.v-offset*du/norm}:{...mean06};
+        const left=norm>0?{u:mean06.u-offset*dv/norm,v:mean06.v+offset*du/norm}:{...mean06};
+        function srh(bottom,top,storm){const p=[windAtHeight(bottom),...levels.filter(x=>x.height>bottom&&x.height<top),windAtHeight(top)].sort((a,b)=>a.height-b.height);let value=0;for(let i=1;i<p.length;i++){const a=p[i-1],b=p[i],ur=(a.u+b.u)/2-storm.u,vr=(a.v+b.v)/2-storm.v;value+=ur*(b.v-a.v)-vr*(b.u-a.u);}return value*0.514444*0.514444;}
+        function info(w){return {...w,speed:Math.hypot(w.u,w.v),direction:(Math.atan2(-w.u,-w.v)*180/Math.PI+360)%360};}
+        const bunkersRight=info(right),bunkersLeft=info(left),meanInfo=info(mean06),srh01km=srh(0,1000,right),srh03km=srh(0,3000,right);
+        return {shear01km:sh01.magnitude,shear03km:sh03.magnitude,shear06km:sh06.magnitude,meanWind06km:meanInfo,bunkersRight,bunkersLeft,srh01km,srh03km,ehi01km:thermo&&Number.isFinite(thermo.cape)?thermo.cape*srh01km/160000:null,ehi03km:thermo&&Number.isFinite(thermo.cape)?thermo.cape*srh03km/160000:null,levels:[{label:"Superfície",level:sfc},{label:"1 km",level:w1},{label:"3 km",level:w3},{label:"6 km",level:w6}]};
     }
-
     // --------------------------------------------------
     // 7. COORDENADAS DO SKEW-T
     // --------------------------------------------------
@@ -896,12 +879,14 @@ const ModelsSounding = (() => {
             setText(id, `${round(level.windSpeed, 0)} kt`);
         }
 
-        // Não fabricamos índices compostos a partir de dados
-        // insuficientes. Eles serão implementados quando houver
-        // SRH válido, movimento da tempestade e os demais termos.
+        setText("idx-mnwind", `${round(kinematics.meanWind06km.speed, 1)} kt · dir ${round(kinematics.meanWind06km.direction, 0)}°`);
+        setText("idx-srh01", `${round(kinematics.srh01km, 1)} m²/s²`);
+        setText("idx-srh03", `${round(kinematics.srh03km, 1)} m²/s²`);
+        setText("idx-bunkers-right", `${round(kinematics.bunkersRight.speed, 1)} kt · ${round(kinematics.bunkersRight.direction, 0)}°`);
+        setText("idx-bunkers-left", `${round(kinematics.bunkersLeft.speed, 1)} kt · ${round(kinematics.bunkersLeft.direction, 0)}°`);
+        setText("idx-ehi", `0–1 km: ${round(kinematics.ehi01km, 2)} · 0–3 km: ${round(kinematics.ehi03km, 2)}`);
         setIndexUnavailable("idx-stp");
         setIndexUnavailable("idx-scp");
-        setIndexUnavailable("idx-ehi");
     }
 
     function validateInputs(params) {
@@ -940,7 +925,7 @@ const ModelsSounding = (() => {
 
             const sounding = generateSounding(params);
             const thermo = calculateThermodynamics(sounding);
-            const kinematics = calculateKinematics(sounding);
+            const kinematics = calculateKinematics(sounding, thermo);
             const traces = buildSkewTTraces(sounding, thermo);
             traces.push(...addWindBarbsToSkewT(sounding));
 
@@ -963,6 +948,10 @@ const ModelsSounding = (() => {
                     shear01km: kinematics.shear01km,
                     shear03km: kinematics.shear03km,
                     shear06km: kinematics.shear06km,
+                    srh01km: kinematics.srh01km,
+                    srh03km: kinematics.srh03km,
+                    ehi01km: kinematics.ehi01km,
+                    ehi03km: kinematics.ehi03km,
                     liftedIndex500: thermo.liftedIndex500,
                     precipitableWater: thermo.precipitableWater,
                     kIndex: thermo.kIndex,
