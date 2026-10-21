@@ -38,6 +38,7 @@
             <button type="button" id="outlook-finish" disabled>✓ Finalizar polígono</button>
             <button type="button" id="outlook-cancel" disabled>Cancelar</button>
             <button type="button" id="outlook-auto">🤖 Gerar cenário</button>
+            <button type="button" id="outlook-model-forecast">🔮 Ver previsão do modelo</button>
             <button type="button" id="outlook-clear">🗑️ Limpar áreas</button>
             <button type="button" id="outlook-usa">🇺🇸 Estados Unidos</button>
             <button type="button" id="outlook-canada">🇨🇦 Canadá</button>
@@ -132,6 +133,7 @@
         $("outlook-cancel").addEventListener("click", cancelarDesenho);
         $("outlook-clear").addEventListener("click", limparAreas);
         $("outlook-auto").addEventListener("click", gerarCenario);
+        $("outlook-model-forecast").addEventListener("click", verPrevisaoModelo);
         $("outlook-world").addEventListener("click", () => {
             if (!mapa) return;
             cancelarDesenho();
@@ -403,6 +405,31 @@
         cancelarDesenho();
         if (camadaRiscos) camadaRiscos.clearLayers();
         status("Todas as áreas de risco foram removidas.");
+    }
+
+    // Executa a previsão conceitual usando o perfil selecionado e a sondagem atual.
+    function verPrevisaoModelo() {
+        if (!mapa) iniciarMapa();
+        if (!mapa || !camadaRiscos) {
+            status("O mapa ainda não está pronto. Abra a aba Convective Outlook e tente novamente.");
+            return;
+        }
+
+        if (!ultimaSondagem && window.ModelsSounding?.getLastSounding) {
+            ultimaSondagem = dadosDoUltimoPerfil(window.ModelsSounding.getLastSounding());
+        }
+        if (!ultimaSondagem) {
+            status("Ainda não há sondagem disponível. Ajuste o ambiente e aguarde o Skew-T calcular os parâmetros.");
+            return;
+        }
+
+        const modo = $("outlook-mode");
+        if (modo) modo.value = "auto";
+        cancelarDesenho();
+        atualizarOutlookDaSondagem(ultimaSondagem);
+        mapa.invalidateSize();
+        const perfil = PERFIS_MODELO[$("model-select")?.value] || PERFIS_MODELO.HRRR;
+        status(`Previsão conceitual gerada com ${perfil.nome}. O mapa usa a sondagem atual; ajuste o ambiente ou troque o perfil e clique novamente para recalcular.`);
     }
 
     // Cenário demonstrativo, não é uma previsão meteorológica real.
