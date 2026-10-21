@@ -467,24 +467,83 @@ const ModelsSounding = (() => {
     // --------------------------------------------------
 
     function calculateKinematics(sounding, thermo) {
-        const levels = [...sounding.levels].sort((a,b)=>a.height-b.height);
+        const levels = [...sounding.levels].sort((a, b) => a.height - b.height);
+        const KNOT_TO_MS = 0.514444;
+        // Convenção configurada para o Hemisfério Sul: SRH ciclônica negativa.
+        const SOUTHERN_HEMISPHERE_SRH_CONVENTION = true;
         function windAtHeight(height) {
-            if(height<=levels[0].height) return {...levels[0],height};
-            if(height>=levels[levels.length-1].height) return {...levels[levels.length-1],height};
-            for(let i=1;i<levels.length;i++){const a=levels[i-1],b=levels[i];if(a.height<=height&&b.height>=height){const f=(height-a.height)/(b.height-a.height);return {height,pressure:a.pressure+f*(b.pressure-a.pressure),u:a.u+f*(b.u-a.u),v:a.v+f*(b.v-a.v),windSpeed:a.windSpeed+f*(b.windSpeed-a.windSpeed),windDirection:a.windDirection+f*(b.windDirection-a.windDirection)};}}
-            return {...levels[levels.length-1],height};
+            if (height <= levels[0].height) return { ...levels[0], height };
+            if (height >= levels[levels.length - 1].height) return { ...levels[levels.length - 1], height };
+            for (let i = 1; i < levels.length; i++) {
+                const a = levels[i - 1], b = levels[i];
+                if (a.height <= height && b.height >= height) {
+                    const f = (height - a.height) / (b.height - a.height);
+                    return { height, pressure: a.pressure + f * (b.pressure - a.pressure),
+                        u: a.u + f * (b.u - a.u), v: a.v + f * (b.v - a.v),
+                        windSpeed: a.windSpeed + f * (b.windSpeed - a.windSpeed),
+                        windDirection: (a.windDirection + f * (b.windDirection - a.windDirection) + 360) % 360 };
+                }
+            }
+            return { ...levels[levels.length - 1], height };
         }
-        function shear(a,b){return {u:b.u-a.u,v:b.v-a.v,magnitude:Math.hypot(b.u-a.u,b.v-a.v)};}
-        function meanWind(bottom,top){const p=[windAtHeight(bottom),...levels.filter(x=>x.height>bottom&&x.height<top),windAtHeight(top)].sort((a,b)=>a.height-b.height);let ui=0,vi=0,d=0;for(let i=1;i<p.length;i++){const dz=p[i].height-p[i-1].height;ui+=(p[i-1].u+p[i].u)*0.5*dz;vi+=(p[i-1].v+p[i].v)*0.5*dz;d+=dz;}return {u:ui/d,v:vi/d};}
-        const sfc=windAtHeight(0),w1=windAtHeight(1000),w3=windAtHeight(3000),w6=windAtHeight(6000);
-        const sh01=shear(sfc,w1),sh03=shear(sfc,w3),sh06=shear(sfc,w6),mean06=meanWind(0,6000);
-        const du=sh06.u*0.514444,dv=sh06.v*0.514444,norm=Math.hypot(du,dv),offset=7.5/0.514444;
-        const right=norm>0?{u:mean06.u+offset*dv/norm,v:mean06.v-offset*du/norm}:{...mean06};
-        const left=norm>0?{u:mean06.u-offset*dv/norm,v:mean06.v+offset*du/norm}:{...mean06};
-        function srh(bottom,top,storm){const p=[windAtHeight(bottom),...levels.filter(x=>x.height>bottom&&x.height<top),windAtHeight(top)].sort((a,b)=>a.height-b.height);let value=0;for(let i=1;i<p.length;i++){const a=p[i-1],b=p[i],ur=(a.u+b.u)/2-storm.u,vr=(a.v+b.v)/2-storm.v;value+=ur*(b.v-a.v)-vr*(b.u-a.u);}return value*0.514444*0.514444;}
-        function info(w){return {...w,speed:Math.hypot(w.u,w.v),direction:(Math.atan2(-w.u,-w.v)*180/Math.PI+360)%360};}
-        const bunkersRight=info(right),bunkersLeft=info(left),meanInfo=info(mean06),srh01km=srh(0,1000,right),srh03km=srh(0,3000,right);
-        return {shear01km:sh01.magnitude,shear03km:sh03.magnitude,shear06km:sh06.magnitude,meanWind06km:meanInfo,bunkersRight,bunkersLeft,srh01km,srh03km,ehi01km:thermo&&Number.isFinite(thermo.cape)?thermo.cape*srh01km/160000:null,ehi03km:thermo&&Number.isFinite(thermo.cape)?thermo.cape*srh03km/160000:null,levels:[{label:"Superfície",level:sfc},{label:"1 km",level:w1},{label:"3 km",level:w3},{label:"6 km",level:w6}]};
+        function shear(a, b) {
+            return { u: b.u - a.u, v: b.v - a.v, magnitude: Math.hypot(b.u - a.u, b.v - a.v) };
+        }
+        function layerPoints(bottom, top) {
+            return [windAtHeight(bottom), ...levels.filter(x => x.height > bottom && x.height < top), windAtHeight(top)]
+                .sort((a, b) => a.height - b.height);
+        }
+        function meanWind(bottom, top) {
+            const p = layerPoints(bottom, top);
+            let ui = 0, vi = 0, depth = 0;
+            for (let i = 1; i < p.length; i++) {
+                const a = p[i - 1], b = p[i], dz = b.height - a.height;
+                ui += (a.u + b.u) * 0.5 * dz;
+                vi += (a.v + b.v) * 0.5 * dz;
+                depth += dz;
+            }
+            return depth > 0 ? { u: ui / depth, v: vi / depth } : { u: NaN, v: NaN };
+        }
+        function srh(bottom, top, storm) {
+            const p = layerPoints(bottom, top);
+            let value = 0;
+            for (let i = 1; i < p.length; i++) {
+                const a = p[i - 1], b = p[i];
+                const ur = (a.u + b.u) / 2 - storm.u;
+                const vr = (a.v + b.v) / 2 - storm.v;
+                value += ur * (b.v - a.v) - vr * (b.u - a.u);
+            }
+            value *= KNOT_TO_MS * KNOT_TO_MS;
+            return SOUTHERN_HEMISPHERE_SRH_CONVENTION ? -value : value;
+        }
+        function info(w) {
+            return { ...w, speed: Math.hypot(w.u, w.v),
+                direction: (Math.atan2(-w.u, -w.v) * 180 / Math.PI + 360) % 360 };
+        }
+        const sfc = windAtHeight(0), w1 = windAtHeight(1000), w3 = windAtHeight(3000), w6 = windAtHeight(6000);
+        const sh01 = shear(sfc, w1), sh03 = shear(sfc, w3), sh06 = shear(sfc, w6);
+        const mean06 = meanWind(0, 6000);
+        const du = sh06.u * KNOT_TO_MS, dv = sh06.v * KNOT_TO_MS;
+        const norm = Math.hypot(du, dv), offset = 7.5 / KNOT_TO_MS;
+        const right = norm > 0 ? { u: mean06.u + offset * dv / norm, v: mean06.v - offset * du / norm } : { ...mean06 };
+        const left = norm > 0 ? { u: mean06.u - offset * dv / norm, v: mean06.v + offset * du / norm } : { ...mean06 };
+        const bunkersRight = info(right), bunkersLeft = info(left), meanInfo = info(mean06);
+        const srh01km = srh(0, 1000, bunkersRight), srh03km = srh(0, 3000, bunkersRight);
+        const cape = thermo && Number.isFinite(thermo.cape) ? thermo.cape : null;
+        const ehi01km = cape === null ? null : cape * srh01km / 160000;
+        const ehi03km = cape === null ? null : cape * srh03km / 160000;
+        const shear06Ms = sh06.magnitude * KNOT_TO_MS;
+        const brnShear = 0.5 * shear06Ms * shear06Ms;
+        const brn = cape !== null && brnShear > 0 ? cape / brnShear : null;
+        return {
+            shear01km: sh01.magnitude, shear03km: sh03.magnitude, shear06km: sh06.magnitude,
+            meanWind06km: meanInfo, bunkersRight, bunkersLeft, srh01km, srh03km,
+            ehi01km, ehi03km, brn, brnShear,
+            // EBWD depende da camada de entrada efetiva, ainda não diagnosticada pelo motor.
+            ebwd: null,
+            levels: [{ label: "Superfície", level: sfc }, { label: "1 km", level: w1 },
+                { label: "3 km", level: w3 }, { label: "6 km", level: w6 }]
+        };
     }
     // --------------------------------------------------
     // 7. COORDENADAS DO SKEW-T
@@ -885,6 +944,9 @@ const ModelsSounding = (() => {
         setText("idx-bunkers-right", `${round(kinematics.bunkersRight.speed, 1)} kt · ${round(kinematics.bunkersRight.direction, 0)}°`);
         setText("idx-bunkers-left", `${round(kinematics.bunkersLeft.speed, 1)} kt · ${round(kinematics.bunkersLeft.direction, 0)}°`);
         setText("idx-ehi", `0–1 km: ${round(kinematics.ehi01km, 2)} · 0–3 km: ${round(kinematics.ehi03km, 2)}`);
+        setText("idx-brn", kinematics.brn === null ? "N/D" : round(kinematics.brn, 1));
+        setText("idx-brn-shear", Number.isFinite(kinematics.brnShear) ? `${round(kinematics.brnShear, 1)} m²/s²` : "N/D");
+        setIndexUnavailable("idx-ebwd");
         setIndexUnavailable("idx-stp");
         setIndexUnavailable("idx-scp");
     }
