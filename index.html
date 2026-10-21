@@ -53,7 +53,7 @@
             </div>
 
             <div class="control-group">
-                <label for="srw">Storm-Relative Winds (SRW - kt): <span id="val-srw">20</span></label>
+                <label for="srw">Cisalhamento vetorial 0–6 km (kt): <span id="val-srw">20</span></label>
                 <input type="range" id="srw" min="0" max="100" value="20">
             </div>
             
@@ -83,7 +83,7 @@
                 
                 <!-- ABA 1: SKEW-T LOG-P (ESTILO SHARPPY) -->
 <section id="skewt-tab" class="tab-section active">
-    <h3>Análise de Sondagem Atmosférica (SHARPpy Pro)</h3>
+    <h3>Painel de Sondagem — estilo SHARPpy (motor próprio)</h3>
     <div style="display: flex; gap: 20px; width: 100%;">
         <!-- O Gráfico Científico -->
         <div id="skewt-chart" style="flex: 2; height: 550px; background: #121218; border: 1px solid #2d2d3d; border-radius: 6px;"></div>
@@ -103,6 +103,16 @@
                 <p>LCL: <span id="lcl-value">—</span></p>
                 <p>LFC: <span id="lfc-value">—</span></p>
                 <p>EL: <span id="el-value">—</span></p>
+                <p>Lifted Index (500 hPa): <span id="idx-li">—</span></p>
+                <p>Água precipitável (PW): <span id="idx-pw">—</span></p>
+                <p>Índice K: <span id="idx-k">—</span></p>
+                <p>Total Totals (TT): <span id="idx-tt">—</span></p>
+                <hr style="border: 1px dashed #2d2d3d;">
+                <h4 style="color:#38bdf8; margin: 4px 0;">📉 LAPSE RATES AMBIENTAIS</h4>
+                <p>Superfície–3 km: <span id="lapse-sfc3">—</span></p>
+                <p>3–6 km: <span id="lapse-3to6">—</span></p>
+                <p>850–500 hPa: <span id="lapse-850500">—</span></p>
+                <p>700–500 hPa: <span id="lapse-700500">—</span></p>
                 <hr style="border: 1px dashed #2d2d3d;">
                 <h4 style="color:#38bdf8; margin: 4px 0;">💨 CISALHAMENTO VETORIAL</h4>
                 <p>0–1 km: <span id="shear-01km">—</span></p>
