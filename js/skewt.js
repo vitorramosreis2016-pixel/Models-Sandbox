@@ -532,8 +532,11 @@ const ModelsSounding = (() => {
         const cape = thermo && Number.isFinite(thermo.cape) ? thermo.cape : null;
         const ehi01km = cape === null ? null : cape * srh01km / 160000;
         const ehi03km = cape === null ? null : cape * srh03km / 160000;
-        const shear06Ms = sh06.magnitude * KNOT_TO_MS;
-        const brnShear = 0.5 * shear06Ms * shear06Ms;
+        // BRN shear term: vector difference between mean wind 0–500 m
+        // and mean wind 0–6 km (not simply surface-to-6 km shear).
+        const mean05 = meanWind(0, 500);
+        const brnBulkShearMs = Math.hypot(mean06.u - mean05.u, mean06.v - mean05.v) * KNOT_TO_MS;
+        const brnShear = 0.5 * brnBulkShearMs * brnBulkShearMs;
         const brn = cape !== null && brnShear > 0 ? cape / brnShear : null;
         return {
             shear01km: sh01.magnitude, shear03km: sh03.magnitude, shear06km: sh06.magnitude,
