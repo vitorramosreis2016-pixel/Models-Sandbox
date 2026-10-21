@@ -158,24 +158,13 @@
                         </div>
 
                         <div>
-                            <label style="font-weight: bold; color: #ff4a4a; display: block; margin-bottom: 5px; font-size: 0.85rem;">Modelo Numérico:</label>
+                            <label style="font-weight: bold; color: #ff4a4a; display: block; margin-bottom: 5px; font-size: 0.85rem;">Perfil de resposta:</label>
                             <select id="model-select">
-                                <optgroup label="Alta Resolução / Curto Prazo (Mesoescala)">
-                                    <option value="HRRR">HRRR (High-Resolution Rapid Refresh)</option>
-                                    <option value="NAM">NAM (North American Mesoscale)</option>
-                                    <option value="WRF">WRF (Weather Research and Forecasting)</option>
-                                    <option value="RRFS">RRFS (Rapid Refresh Forecast System)</option>
-                                </optgroup>
-                                <optgroup label="Modelos Globais (Longo Prazo)">
-                                    <option value="GFS">GFS (Global Forecast System - EUA)</option>
-                                    <option value="ECMWF">ECMWF (Euro Model - Europa)</option>
-                                    <option value="ICON">ICON (German Model - Alemanha)</option>
-                                    <option value="UKMET">UKMET (United Kingdom Met Office)</option>
-                                </optgroup>
-                                <optgroup label="Ensembles (Probabilísticos)">
-                                    <option value="GEFS">GEFS (Global Ensemble Forecast System)</option>
-                                    <option value="EPS">EPS (ECMWF Ensemble)</option>
-                                    <option value="REFS">REFS (Regional Ensemble Forecast System)</option>
+                                <optgroup label="Perfis conceituais — não são execuções reais de NWP">
+                                    <option value="HRRR" selected>HRRR-like · resposta rápida / células intensas</option>
+                                    <option value="GFS">GFS-like · cenário de referência</option>
+                                    <option value="ECMWF">ECMWF-like · cenário mais conservador</option>
+                                    <option value="ENSEMBLE">Ensemble conceitual · faixa de incerteza</option>
                                 </optgroup>
                             </select>
                         </div>
@@ -192,6 +181,17 @@
                             </select>
                         </div>
                     </div>
+
+                    <!-- Diagnóstico calculado do mesmo ambiente usado pela sondagem. -->
+                    <section id="model-lab" style="background:#111827;border:1px solid #334155;border-radius:8px;padding:16px;margin-bottom:15px;color:#e2e8f0;">
+                        <div style="display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;">
+                            <h4 style="margin:0;color:#38bdf8;">🧪 Resposta do modelo ao ambiente</h4>
+                            <span id="model-lab-state" style="font-size:.8rem;color:#94a3b8;">Aguardando sondagem…</span>
+                        </div>
+                        <p id="model-lab-summary" style="margin:10px 0;color:#cbd5e1;">Mude temperatura, ponto de orvalho, lapse rate e cisalhamento para ver os diagnósticos mudarem.</p>
+                        <div id="model-lab-results" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;"></div>
+                        <p id="model-lab-note" style="font-size:.78rem;color:#94a3b8;margin:12px 0 0;">Experimento conceitual baseado na sondagem sintética; não representa dados nem previsões operacionais dos modelos citados.</p>
+                    </section>
 
                     <!-- DIV ONDE O MAPA-MÚNDI REAL SERÁ INJETADO PELO OUTLOOK.JS -->
                     <div id="convective-map" style="height: 550px; width: 100%; border: 1px solid #2d2d3d; border-radius: 6px; position: relative;"></div>
