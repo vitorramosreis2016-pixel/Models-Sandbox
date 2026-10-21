@@ -1,72 +1,63 @@
-// CONTROLADOR PRINCIPAL - CONEXÃO INTERFACE E MOTOR MATEMÁTICO
+// CONTROLADOR PRINCIPAL — AMBIENTE ATMOSFÉRICO COMPARTILHADO
+// Os diagnósticos exibidos aqui vêm do mesmo perfil calculado pelo
+// motor da sondagem (js/skewt.js). Não manter uma segunda CAPE/CIN falsa.
 
-// 1. Mapeamento dos elementos de entrada (Sliders)
-const sliderTemp = document.getElementById('temp');
-const sliderDwpt = document.getElementById('dwpt');
-const sliderWind = document.getElementById('wind');
-const sliderLapse = document.getElementById('lapse');
-const sliderSrw = document.getElementById('srw');
+"use strict";
 
-// 2. Mapeamento dos elementos de saída de texto (Valores ao lado dos Sliders)
-const textTemp = document.getElementById('val-temp');
-const textDwpt = document.getElementById('val-dwpt');
-const textWind = document.getElementById('val-wind');
-const textLapse = document.getElementById('val-lapse');
-const textSrw = document.getElementById('val-srw');
+const $ = id => document.getElementById(id);
 
-// 3. Mapeamento dos elementos de saída dos Índices Computados
-const resultLcl = document.getElementById('lcl-result');
-const resultCape = document.getElementById('cape-result');
-const resultCin = document.getElementById('cin-result');
+const controls = {
+    temp: { input: $("temp"), output: $("val-temp") },
+    dwpt: { input: $("dwpt"), output: $("val-dwpt") },
+    wind: { input: $("wind"), output: $("val-wind") },
+    lapse: { input: $("lapse"), output: $("val-lapse") },
+    srw: { input: $("srw"), output: $("val-srw") }
+};
 
-/**
- * Função responsável por ler os sliders, rodar os cálculos e atualizar a tela
- */
 function processarMesoanalise() {
-    // Captura e converte os valores atuais dos controles flutuantes
-    const t = parseFloat(sliderTemp.value);
-    const td = parseFloat(sliderDwpt.value);
-    const wind = parseInt(sliderWind.value);
-    const lapse = parseFloat(sliderLapse.value);
-    const srw = parseInt(sliderSrw.value);
+    const temp = Number(controls.temp.input?.value ?? 25);
+    const dewpointInput = controls.dwpt.input;
+    if (!dewpointInput) return;
 
-    // Regra de segurança: O Dewpoint não pode ser maior que a temperatura real
-    if (td > t) {
-        // Força o slider do Dewpoint a acompanhar o limite máximo da temperatura ambiente
-        sliderDwpt.value = t;
-        textDwpt.innerText = t;
-    } else {
-        textDwpt.innerText = td;
+    // Impede ponto de orvalho acima da temperatura ambiente.
+    if (Number(dewpointInput.value) > temp) {
+        dewpointInput.value = String(temp);
     }
 
-    // Atualiza os pequenos textos indicadores ao lado de cada slider
-    textTemp.innerText = t;
-    textWind.innerText = wind;
-    textLapse.innerText = lapse;
-    textSrw.innerText = srw;
+    for (const [key, control] of Object.entries(controls)) {
+        if (control.input && control.output) {
+            control.output.textContent = control.input.value;
+        }
+    }
 
-    // Executa as fórmulas meteorológicas importadas do arquivo math.js
-    const lcl = calcularLCL(t, parseFloat(sliderDwpt.value));
-    const cape = estimarCAPE(t, parseFloat(sliderDwpt.value), lapse);
-    const cin = estimarCIN(t, parseFloat(sliderDwpt.value));
-
-    // cospe os resultados finais calculados dentro do painel de diagnóstico
-    resultLcl.innerText = lcl;
-    resultCape.innerText = cape;
-    resultCin.innerText = cin;
-
-    // [ESPAÇO RESERVADO] Futuramente, chamaremos a função de redesenhar o Skew-T aqui:
-    // atualizarGraficoSkewT(t, parseFloat(sliderDwpt.value), lapse, wind, srw);
+    // Recalcula a sondagem completa usando o estado comum do ambiente.
+    if (window.ModelsSounding && typeof window.ModelsSounding.update === "function") {
+        window.ModelsSounding.update();
+    }
 }
 
-// 4. Adiciona ouvintes de eventos para recalcular tudo instantaneamente ao mover os controles
-sliderTemp.addEventListener('input', processarMesoanalise);
-sliderDwpt.addEventListener('input', processarMesoanalise);
-sliderWind.addEventListener('input', processarMesoanalise);
-sliderLapse.addEventListener('input', processarMesoanalise);
-sliderSrw.addEventListener('input', processarMesoanalise);
+// O painel lateral recebe os mesmos diagnósticos do motor da sondagem.
+// Assim, os valores não divergem entre a barra lateral e o Skew-T.
+window.addEventListener("models-sounding-updated", event => {
+    const data = event.detail || {};
+    const format = (value, digits = 0) =>
+        Number.isFinite(Number(value)) ? Number(value).toFixed(digits) : "—";
 
-// 5. Roda a função uma vez ao carregar a página para preencher os dados iniciais padrão
-window.addEventListener('DOMContentLoaded', () => {
-    processarMesoanalise();
+    const lcl = $("lcl-result");
+    const cape = $("cape-result");
+    const cin = $("cin-result");
+
+    if (lcl) lcl.textContent = format(data.lcl);
+    if (cape) cape.textContent = format(data.cape);
+    if (cin) cin.textContent = format(data.cin);
 });
+
+Object.values(controls).forEach(control => {
+    if (!control.input) return;
+    control.input.addEventListener("input", processarMesoanalise);
+    control.input.addEventListener("change", processarMesoanalise);
+});
+
+window.processarMesoanalise = processarMesoanalise;
+
+window.addEventListener("DOMContentLoaded", processarMesoanalise);
