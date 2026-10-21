@@ -240,63 +240,39 @@ const ModelsSounding = (() => {
 
     function calculateParcelProfile(sounding) {
         const { levels, surface, lcl } = sounding;
-
         const parcel = [];
+        let previousParcelTemp = surface.temp;
         let previousHeight = 0;
-        let previousTemp = surface.temp;
         let previousPressure = surface.pressure;
 
-        for (let i = 0; i < levels.length; i++) {
-            const level = levels[i];
-
+        for (const level of levels) {
             let parcelTemp;
 
             if (level.pressure >= lcl.pressure) {
-                // Ascensão seca: temperatura potencial constante.
-                parcelTemp =
-                    (surface.temp + 273.15) *
-                    Math.pow(
-                        level.pressure / surface.pressure,
-                        KAPPA
-                    ) - 273.15;
+                // Ascensão seca até o LCL: theta constante.
+                parcelTemp = (surface.temp + 273.15) *
+                    Math.pow(level.pressure / surface.pressure, KAPPA) - 273.15;
             } else {
-                // Integração aproximada da ascensão úmida
-                // entre os níveis do perfil.
-                if (i === 0) {
-                    parcelTemp = previousTemp;
-                } else {
-                    const deltaHeight =
-                        Math.max(0, level.height - previousHeight);
+                // Inicia exatamente no LCL quando o passo atravessa essa camada.
+                const startTemp = previousPressure >= lcl.pressure
+                    ? lcl.temperature
+                    : previousParcelTemp;
+                const startHeight = previousPressure >= lcl.pressure
+                    ? lcl.height
+                    : previousHeight;
+                const startPressure = previousPressure >= lcl.pressure
+                    ? lcl.pressure
+                    : previousPressure;
+                const deltaHeight = Math.max(0, level.height - startHeight);
+                const meanPressure = (startPressure + level.pressure) / 2;
 
-                    const meanPressure =
-                        (level.pressure + previousPressure) / 2;
-
-                    const meanTemp =
-                        (previousTemp + level.temp) / 2;
-
-                    const gamma = moistAdiabaticLapseRate(
-                        meanTemp,
-                        meanPressure
-                    );
-
-                    parcelTemp =
-                        previousTemp -
-                        gamma * deltaHeight / 1000;
-                }
-
-                // Garante que a parcela tenha passado pelo LCL.
-                if (previousPressure >= lcl.pressure) {
-                    const tempAtLCL = lcl.temperature;
-                    const heightAboveLCL =
-                        Math.max(0, level.height - lcl.height);
-
-                    const gamma = moistAdiabaticLapseRate(
-                        tempAtLCL,
-                        level.pressure
-                    );
-
-                    parcelTemp = tempAtLCL -
-                        gamma * heightAboveLCL / 1000;
+                // Iteração simples para avaliar a taxa úmida com a temperatura da parcela,
+                // não com a temperatura ambiental.
+                parcelTemp = startTemp;
+                for (let iteration = 0; iteration < 4; iteration++) {
+                    const meanTemp = (startTemp + parcelTemp) / 2;
+                    const gamma = moistAdiabaticLapseRate(meanTemp, meanPressure);
+                    parcelTemp = startTemp - gamma * deltaHeight / 1000;
                 }
             }
 
@@ -306,8 +282,8 @@ const ModelsSounding = (() => {
                 temp: parcelTemp
             });
 
+            previousParcelTemp = parcelTemp;
             previousHeight = level.height;
-            previousTemp = parcelTemp;
             previousPressure = level.pressure;
         }
 
@@ -318,78 +294,75 @@ const ModelsSounding = (() => {
     // 5. CAPE E CIN
     // --------------------------------------------------
 
-    function calculateBuoyancy(level, parcelLevel, surfaceMixingRatio) {
+    function calculateBuoyancy(level, parcelLevel, surfaceMixingRatio, lclPressure) {
         const envMixingRatio = mixingRatioFromDewpoint(
             level.dewpoint,
             level.pressure
         );
 
-        // Abaixo do LCL, a parcela conserva aproximadamente
-        // a razão de mistura inicial. Acima, assume saturação.
-        const parcelMixingRatio =
-            parcelLevel.pressure >= 0 &&
-            parcelLevel.temp > -100
-                ? saturationMixingRatio(
-                    parcelLevel.temp,
-                    parcelLevel.pressure
-                )
-                : surfaceMixingRatio;
+        // A parcela conserva sua razão de mistura inicial abaixo do LCL;
+        // acima do LCL, a razão de mistura é aproximada pela saturação.
+        const parcelMixingRatio = level.pressure >= lclPressure
+            ? surfaceMixingRatio
+            : saturationMixingRatio(parcelLevel.temp, parcelLevel.pressure);
 
-        const envTv = virtualTemperature(
-            level.temp,
-            envMixingRatio
-        );
-
-        const parcelTv = virtualTemperature(
-            parcelLevel.temp,
-            parcelMixingRatio
-        );
-
+        const envTv = virtualTemperature(level.temp, envMixingRatio);
+        const parcelTv = virtualTemperature(parcelLevel.temp, parcelMixingRatio);
         return G * (parcelTv - envTv) / envTv;
     }
 
     function calculateCAPEandCIN(sounding, parcel) {
         const levels = sounding.levels;
-        const buoyancies = [];
-
-        for (let i = 0; i < levels.length; i++) {
-            buoyancies.push(
-                calculateBuoyancy(
-                    levels[i],
-                    parcel[i],
-                    sounding.surface.mixingRatio
-                )
-            );
-        }
+        const buoyancies = levels.map((level, i) =>
+            calculateBuoyancy(
+                level,
+                parcel[i],
+                sounding.surface.mixingRatio,
+                sounding.lcl.pressure
+            )
+        );
 
         let cape = 0;
         let cin = 0;
         let lfc = null;
         let equilibriumLevel = null;
-        let positiveRegionStarted = false;
+        let positiveLayerStarted = false;
 
         for (let i = 1; i < levels.length; i++) {
-            const z1 = levels[i - 1].height;
-            const z2 = levels[i].height;
-            const b1 = buoyancies[i - 1];
-            const b2 = buoyancies[i];
+            const a = levels[i - 1];
+            const b = levels[i];
+            const ba = buoyancies[i - 1];
+            const bb = buoyancies[i];
+            const dz = b.height - a.height;
+            if (!(dz > 0) || !Number.isFinite(ba) || !Number.isFinite(bb)) continue;
 
-            const dz = z2 - z1;
-            if (dz <= 0) continue;
-
-            const meanB = (b1 + b2) / 2;
-
-            if (meanB > 0) {
-                cape += meanB * dz;
-
-                if (!positiveRegionStarted) {
-                    lfc = levels[i].pressure;
-                    positiveRegionStarted = true;
+            // Split at zero buoyancy so a sign change is not averaged away.
+            if (ba <= 0 && bb > 0) {
+                const fraction = -ba / (bb - ba);
+                const zCross = a.height + fraction * dz;
+                const pCross = a.pressure + fraction * (b.pressure - a.pressure);
+                cin += 0.5 * ba * (zCross - a.height);
+                cape += 0.5 * bb * (b.height - zCross);
+                if (lfc === null) lfc = pCross;
+                positiveLayerStarted = true;
+            } else if (ba > 0 && bb <= 0) {
+                const fraction = ba / (ba - bb);
+                const zCross = a.height + fraction * dz;
+                const pCross = a.pressure + fraction * (b.pressure - a.pressure);
+                cape += 0.5 * ba * (zCross - a.height);
+                cin += 0.5 * bb * (b.height - zCross);
+                if (positiveLayerStarted && equilibriumLevel === null) {
+                    equilibriumLevel = pCross;
                 }
-            } else if (!positiveRegionStarted) {
-                cin += meanB * dz;
-            } else if (equilibriumLevel === null && b1 > 0) {
-                equilibriumLevel = levels[i].pressure;
+            } else {
+                const meanB = (ba + bb) / 2;
+                if (meanB > 0) {
+                    cape += meanB * dz;
+                    if (lfc === null) lfc = a.pressure;
+                    positiveLayerStarted = true;
+                } else {
+                    cin += meanB * dz;
+                }
             }
         }
 
