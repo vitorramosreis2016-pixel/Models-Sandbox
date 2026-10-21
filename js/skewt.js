@@ -625,9 +625,14 @@ const ModelsSounding = (() => {
             const effectiveShearMs = ebwd === null ? null : ebwd * KNOT_TO_MS;
             // SCP: MUCAPE/1000 × effective SRH/50 × effective shear/20 m/s.
             // The current parcel engine provides surface CAPE; do not mislabel it MUCAPE.
-            const capeForComposite = cape;
-            if (capeForComposite !== null && effectiveSrh !== null && effectiveShearMs !== null) {
-                scp = (capeForComposite / 1000) * (effectiveSrh / 50) * (effectiveShearMs / 20);
+            const muCape = effectiveInflowLayer.levels.reduce(
+                (maximum, level) => Math.max(maximum, level.cape),
+                0
+            );
+            if (Number.isFinite(muCape) && effectiveSrh !== null && effectiveShearMs !== null) {
+                // Use |SRH| so the composite remains meaningful with the
+                // project's Southern Hemisphere negative-cyclonic convention.
+                scp = (muCape / 1000) * (Math.abs(effectiveSrh) / 50) * (effectiveShearMs / 20);
             }
             // Fixed-layer significant tornado parameter, using computed 0–500-m
             // mixed-layer CAPE/CIN, effective SRH, LCL and effective shear.
@@ -639,7 +644,7 @@ const ModelsSounding = (() => {
                     1000
                 ).height;
                 const lclFactor = clamp((2000 - lclHeight) / 1000, 0, 1);
-                const srhFactor = effectiveSrh / 150;
+                const srhFactor = Math.abs(effectiveSrh) / 150;
                 const shearFactor = clamp(effectiveShearMs / 20, 0, 1.5);
                 const cinFactor = mlcin > -50 ? 1 : mlcin > -200 ? (200 + mlcin) / 150 : 0;
                 stp = capeFactor * lclFactor * srhFactor * shearFactor * cinFactor;
