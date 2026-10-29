@@ -71,28 +71,10 @@
           <button id="resetButton" class="secondary-button">↺ Reiniciar</button>
         </div>
 
-        <p class="eyebrow">AMBIENTE ATMOSFÉRICO</p>
-        <label class="control-label" for="instability">Instabilidade (CAPE relativo)
-          <output id="instabilityValue">1800 J/kg</output>
-        </label>
-        <input id="instability" type="range" min="500" max="3500" step="100" value="1800">
-        <label class="control-label" for="shear">Cisalhamento 0–6 km
-          <output id="shearValue">20 m/s</output>
-        </label>
-        <input id="shear" type="range" min="5" max="35" step="1" value="20">
-        <label class="control-label" for="moisture">Umidade baixa/média troposfera
-          <output id="moistureValue">70%</output>
-        </label>
-        <input id="moisture" type="range" min="25" max="95" step="5" value="70">
-        <label class="control-label" for="boundary">Convergência / limite de outflow
-          <output id="boundaryValue">50%</output>
-        </label>
-        <input id="boundary" type="range" min="0" max="100" step="5" value="50">
-        <div class="control-note">
-          Você altera o ambiente, não a tempestade diretamente. O motor responde
-          com mudanças sintéticas na intensidade, organização, forma e deslocamento.
-          Parâmetros ilustrativos, não uma previsão numérica.
-        </div>
+        <p class="eyebrow">AMBIENTE COMPARTILHADO</p>
+        <div class="control-note">O radar usa o ambiente configurado na tela inicial: temperatura, dewpoint, vento de superfície, lapse rate e cisalhamento 0–6 km. Volte à tela inicial para alterá-lo; a tempestade responde a esses parâmetros.</div>
+        <p id="environmentStatus" class="environment-status" aria-live="polite">Carregando ambiente…</p>
+        <button id="backToEnvironment" class="secondary-button" type="button">← Voltar ao ambiente</button>
       </section>
 
       <section class="control-card">
