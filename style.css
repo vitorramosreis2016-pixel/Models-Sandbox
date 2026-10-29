@@ -391,3 +391,27 @@ header p {
 @media (max-width: 600px) {
     .radar-launch-link { width: 100%; align-items: center; text-align: center; }
 }
+
+
+/* Módulo de cenários de chuva excessiva */
+.rainfall-toolbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  margin: 12px 0; padding: 12px; background: #161622;
+  border: 1px solid #2d2d3d; border-radius: 8px;
+}
+.rainfall-toolbar label { color: #cbd5e1; font-weight: 600; }
+.rainfall-toolbar select, .rainfall-toolbar button {
+  padding: 8px 10px; border: 1px solid #3b3b54; border-radius: 6px;
+  background: #202033; color: #e2e8f0;
+}
+.rainfall-toolbar button { cursor: pointer; }
+.rainfall-toolbar button:disabled { opacity: .45; cursor: not-allowed; }
+#rainfall-status { flex: 1 1 220px; color: #94a3b8; font-size: .85rem; }
+.rainfall-legend { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin:10px 0 16px; color:#cbd5e1; font-size:.85rem; }
+.rainfall-legend strong { flex-basis:100%; }
+.rainfall-legend span { display:flex; align-items:center; gap:5px; }
+.rainfall-legend i { display:inline-block; width:12px; height:12px; border:1px solid #ffffff55; border-radius:2px; }
+@media(max-width:650px) {
+  #rainfall-map { height: 420px !important; }
+  .rainfall-toolbar button, .rainfall-toolbar select { flex: 1 1 130px; }
+}
