@@ -28,6 +28,13 @@
   const frameLabel = $("frameLabel");
   const legend = $("legend");
   const legendTicks = $("legendTicks");
+  const productSelect = $("productSelect");
+  const productTitle = $("productTitle");
+  const legendName = $("legendName");
+  const infoProductTitle = $("infoProductTitle");
+  const motionToggle = $("motionToggle");
+  let product = "reflectivity";
+  const stormTrack = [];
 
   // Resolução interna do campo sintético.
   // A imagem é ampliada no Canvas para manter a renderização leve.
@@ -93,13 +100,24 @@
     );
   }
 
-  // Interpolação entre cores da escala de refletividade.
-  function colorFor(dbz) {
-    const value = clamp(dbz, 0, MAX_DBZ);
+  const productInfo = {
+    reflectivity: {title:"Super-Res Reflectivity",unit:"dBZ",legend:"REFLECTIVIDADE",min:0,max:75,ticks:[0,10,20,30,40,50,60,75],colors:[[0,[8,15,24]],[5,[17,35,68]],[10,[32,70,155]],[15,[43,133,207]],[20,[48,187,198]],[25,[42,176,93]],[30,[85,201,61]],[35,[171,218,50]],[40,[246,226,53]],[45,[255,177,43]],[50,[246,112,35]],[55,[226,53,43]],[60,[196,36,91]],[65,[215,118,183]],[70,[239,190,239]],[75,[255,255,255]]]},
+    velocity:{title:"Base Velocity",unit:"kt",legend:"VELOCIDADE RADIAL (SIMULADA)",min:-60,max:60,ticks:[-60,-40,-20,0,20,40,60],colors:[[-60,[0,40,180]],[-40,[40,130,255]],[-20,[135,205,255]],[-1,[220,230,235]],[1,[245,225,220]],[20,[255,150,100]],[40,[230,55,45]],[60,[150,0,20]]]},
+    srv:{title:"Storm Relative Velocity",unit:"kt",legend:"VELOCIDADE RELATIVA À TEMPESTADE (SIMULADA)",min:-60,max:60,ticks:[-60,-40,-20,0,20,40,60],colors:[[-60,[0,30,150]],[-40,[35,105,230]],[-20,[120,190,255]],[-1,[225,235,240]],[1,[245,225,220]],[20,[255,140,95]],[40,[225,45,35]],[60,[125,0,15]]]},
+    spectrum:{title:"Spectrum Width",unit:"kt",legend:"LARGURA ESPECTRAL (SIMULADA)",min:0,max:30,ticks:[0,5,10,15,20,25,30],colors:[[0,[8,15,24]],[3,[30,65,110]],[6,[30,145,160]],[10,[65,190,95]],[15,[220,220,65]],[20,[245,140,45]],[25,[220,55,55]],[30,[245,220,245]]]},
+    vil:{title:"Vertically Integrated Liquid",unit:"kg/m²",legend:"VIL (DERIVADO, SIMULADO)",min:0,max:70,ticks:[0,10,20,30,40,50,60,70],colors:[[0,[8,15,24]],[5,[20,65,150]],[10,[30,160,200]],[20,[40,190,80]],[30,[220,220,50]],[40,[255,145,35]],[50,[225,35,35]],[60,[190,40,170]],[70,[255,255,255]]]},
+    tops:{title:"Echo Tops",unit:"kft",legend:"TOPO DOS ECOS (ESTIMADO)",min:0,max:60,ticks:[0,10,20,30,40,50,60],colors:[[0,[8,15,24]],[5,[25,75,160]],[10,[35,160,200]],[20,[45,185,90]],[30,[230,220,50]],[40,[255,140,35]],[50,[220,45,45]],[60,[250,230,250]]]},
+    stormtotal:{title:"Storm Total",unit:"in",legend:"ACUMULAÇÃO TOTAL (SIMULADA)",min:0,max:5,ticks:[0,1,2,3,4,5],colors:[[0,[8,15,24]],[0.25,[30,90,170]],[0.5,[40,170,190]],[1,[50,180,80]],[2,[225,220,50]],[3,[255,140,35]],[4,[220,45,45]],[5,[250,220,250]]]},
+    accumulation:{title:"Accumulation",unit:"in",legend:"ACUMULAÇÃO EM JANELA (SIMULADA)",min:0,max:2,ticks:[0,0.25,0.5,1,1.5,2],colors:[[0,[8,15,24]],[0.1,[30,90,170]],[0.25,[40,170,190]],[0.5,[50,180,80]],[1,[225,220,50]],[1.5,[255,140,35]],[2,[220,45,45]]]}
+  };
 
-    for (let i = 1; i < palette.length; i++) {
-      const [upper, upperColor] = palette[i];
-      const [lower, lowerColor] = palette[i - 1];
+  function colorFor(dbz) {
+    const activePalette = productInfo[product].colors;
+    const value = clamp(dbz, productInfo[product].min, productInfo[product].max);
+
+    for (let i = 1; i < activePalette.length; i++) {
+      const [upper, upperColor] = activePalette[i];
+      const [lower, lowerColor] = activePalette[i - 1];
 
       if (value <= upper) {
         const t = (value - lower) / (upper - lower);
@@ -115,16 +133,17 @@
       }
     }
 
-    return palette[palette.length - 1][1];
+    return activePalette[activePalette.length - 1][1];
   }
 
   function buildLegend() {
     legend.replaceChildren();
     legendTicks.replaceChildren();
 
+    const info = productInfo[product];
     for (let i = 0; i < 16; i++) {
-      const start = i * MAX_DBZ / 16;
-      const end = (i + 1) * MAX_DBZ / 16;
+      const start = info.min + i * (info.max - info.min) / 16;
+      const end = info.min + (i + 1) * (info.max - info.min) / 16;
       const midpoint = (start + end) / 2;
       const color = colorFor(midpoint);
 
@@ -135,11 +154,14 @@
       legend.appendChild(swatch);
     }
 
-    [0, 10, 20, 30, 40, 50, 60, 75].forEach((value) => {
+    info.ticks.forEach((value) => {
       const tick = document.createElement("span");
       tick.textContent = value;
       legendTicks.appendChild(tick);
     });
+    legendName.textContent = info.legend;
+    productTitle.innerHTML = `${info.title} <span class="unit">${info.unit}</span>`;
+    infoProductTitle.textContent = info.title;
   }
 
   // Tempestade inteiramente sintética:
@@ -312,6 +334,17 @@
       ctx.stroke();
     }
 
+    ctx.strokeStyle = "rgba(70, 155, 220, 0.55)";
+    ctx.lineWidth = Math.max(1, dpr);
+    ctx.beginPath();
+    ctx.moveTo(width * 0.08, height * 0.24);
+    ctx.bezierCurveTo(width * 0.28, height * 0.35, width * 0.18, height * 0.56, width * 0.42, height * 0.71);
+    ctx.bezierCurveTo(width * 0.55, height * 0.79, width * 0.72, height * 0.68, width * 0.91, height * 0.86);
+    ctx.stroke();
+    ctx.fillStyle = "rgba(220, 232, 242, 0.8)";
+    ctx.font = `${Math.max(10, 11 * dpr)}px sans-serif`;
+    [["SPRINGFIELD",0.18,0.29],["RIVER CITY",0.72,0.23],["OAK RIDGE",0.77,0.76]].forEach(([name,x,y]) => { ctx.fillText(name, width*x, height*y); });
+
     // Marcador central do radar.
     ctx.strokeStyle = "rgba(207, 224, 240, 0.7)";
     ctx.beginPath();
@@ -353,6 +386,19 @@
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(tempCanvas, 0, 0, width, height);
     ctx.restore();
+  }
+
+  function drawStormMotion() {
+    if (!motionToggle.checked) return;
+    const cx = width * (0.57 + 0.045 * Math.sin(simTime * 0.10));
+    const cy = height * (0.48 + 0.035 * Math.sin(simTime * 0.07 + 1.2));
+    stormTrack.push({x:cx,y:cy});
+    if (stormTrack.length > 18) stormTrack.shift();
+    ctx.save(); ctx.strokeStyle = "#ffffffcc"; ctx.fillStyle = "#ffffff"; ctx.lineWidth = Math.max(1.5,dpr);
+    if (stormTrack.length > 1) { ctx.beginPath(); stormTrack.forEach((p,i)=> i ? ctx.lineTo(p.x,p.y) : ctx.moveTo(p.x,p.y)); ctx.stroke(); }
+    const dx = width * 0.025, dy = height * 0.012;
+    ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx+dx,cy+dy); ctx.lineTo(cx+dx-width*0.006,cy+dy-height*0.012); ctx.moveTo(cx+dx,cy+dy); ctx.lineTo(cx+dx-width*0.014,cy+dy-height*0.001); ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx,cy,3*dpr,0,Math.PI*2); ctx.fill(); ctx.restore();
   }
 
   function updateStatistics() {
@@ -408,6 +454,8 @@
     drawRadarBackground();
     drawField();
 
+    drawStormMotion();
+
     // Sobreposição de alcance após o campo de ecos.
     ctx.save();
     ctx.strokeStyle = "rgba(173, 201, 224, 0.30)";
@@ -461,6 +509,8 @@
   });
 
   speedInput.addEventListener("input", updateControls);
+  productSelect.addEventListener("change", () => { product = productSelect.value; buildLegend(); render(); });
+  motionToggle.addEventListener("change", render);
 
   function animate(timestamp) {
     if (!lastTimestamp) lastTimestamp = timestamp;
