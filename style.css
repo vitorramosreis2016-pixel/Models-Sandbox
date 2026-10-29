@@ -357,3 +357,37 @@ header p {
     #skewt-chart, #hodograph-panel, #sharppy-panel { grid-column: 1; grid-row: auto; }
     #skewt-chart { height: 500px !important; }
 }
+
+
+/* Acesso direto ao radar meteorológico */
+.radar-launch-link {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+    margin-top: 12px;
+    padding: 10px 14px;
+    max-width: 100%;
+    color: #e0f2fe;
+    background: linear-gradient(135deg, #0c4a6e, #164e63);
+    border: 1px solid #38bdf8;
+    border-radius: 8px;
+    text-decoration: none;
+    font-size: 0.95rem;
+    font-weight: 700;
+    transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+.radar-launch-link span {
+    color: #bae6fd;
+    font-size: 0.75rem;
+    font-weight: 400;
+}
+.radar-launch-link:hover, .radar-launch-link:focus-visible {
+    background: linear-gradient(135deg, #075985, #155e75);
+    box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.18);
+    transform: translateY(-1px);
+    outline: none;
+}
+@media (max-width: 600px) {
+    .radar-launch-link { width: 100%; align-items: center; text-align: center; }
+}
