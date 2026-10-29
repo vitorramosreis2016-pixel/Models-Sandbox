@@ -30,6 +30,13 @@ function processarMesoanalise() {
         }
     }
 
+    // Compartilha os controles reais da tela inicial com o radar.
+    try {
+        localStorage.setItem("modelsSandboxEnvironment", JSON.stringify(Object.fromEntries(
+            Object.entries(controls).map(([key, control]) => [key, Number(control.input.value)])
+        )));
+    } catch (error) { console.warn("Ambiente não compartilhado com o radar.", error); }
+
     // Recalcula a sondagem completa usando o estado comum do ambiente.
     if (window.ModelsSounding && typeof window.ModelsSounding.update === "function") {
         window.ModelsSounding.update();
