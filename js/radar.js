@@ -359,7 +359,18 @@
 
   function drawField() {
     for (let i = 0; i < PIXELS; i++) {
-      const color = colorFor(field[i]);
+      const x = (i % GRID) / (GRID - 1);
+      const y = Math.floor(i / GRID) / (GRID - 1);
+      const dbz = field[i];
+      let value = dbz;
+      if (product === "velocity") value = (x - 0.57) * 95 + (y - 0.48) * 28 + 18 * Math.sin(simTime * 0.4);
+      else if (product === "srv") value = (x - 0.57) * 115 + (y - 0.48) * 20;
+      else if (product === "spectrum") value = clamp((dbz - 8) * 0.42 + 2.5 * Math.abs(Math.sin(x * 35 + y * 19)), 0, 30);
+      else if (product === "vil") value = Math.max(0, (dbz - 12) * 1.08);
+      else if (product === "tops") value = Math.max(0, (dbz - 5) * 0.82);
+      else if (product === "stormtotal") value = Math.max(0, (dbz - 18) / 12 * Math.min(1, simTime / 45));
+      else if (product === "accumulation") value = Math.max(0, (dbz - 25) / 25 * Math.min(1, simTime / 25));
+      const color = colorFor(value);
       const p = i * 4;
 
       image.data[p] = color[0];
