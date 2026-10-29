@@ -16,16 +16,9 @@
   const playButton = $("playButton");
   const resetButton = $("resetButton");
   const speedInput = $("speed");
-  const instabilityInput = $("instability");
-  const shearInput = $("shear");
-  const moistureInput = $("moisture");
-  const boundaryInput = $("boundary");
-
   const speedValue = $("speedValue");
-  const instabilityValue = $("instabilityValue");
-  const shearValue = $("shearValue");
-  const moistureValue = $("moistureValue");
-  const boundaryValue = $("boundaryValue");
+  const environmentStatus = $("environmentStatus");
+  const backToEnvironment = $("backToEnvironment");
   const legendUnit = $("legendUnit");
   const maxDbz = $("maxDbz");
   const echoArea = $("echoArea");
@@ -80,11 +73,33 @@
   let height = 0;
   let dpr = 1;
 
-  let instability = Number(instabilityInput.value);
-  let shear = Number(shearInput.value);
-  let moisture = Number(moistureInput.value);
-  let boundary = Number(boundaryInput.value);
+  let environment = readEnvironment();
   let speed = Number(speedInput.value);
+
+  function readEnvironment() {
+    const defaults = { temp: 25, dwpt: 18, wind: 10, lapse: 6.5, srw: 20 };
+    try {
+      const saved = JSON.parse(localStorage.getItem("modelsSandboxEnvironment") || "null");
+      return { ...defaults, ...(saved && typeof saved === "object" ? saved : {}) };
+    } catch { return defaults; }
+  }
+
+  function deriveEnvironment() {
+    const e = environment;
+    const temp = clamp(Number(e.temp), -10, 45);
+    const dewpoint = clamp(Number(e.dwpt), -15, Math.min(30, temp));
+    const wind = clamp(Number(e.wind), 0, 60);
+    const lapse = clamp(Number(e.lapse), 4, 10);
+    const shearKt = clamp(Number(e.srw), 0, 100);
+    const spread = Math.max(0, temp - dewpoint);
+    return {
+      temp, dewpoint, wind, lapse, shearKt,
+      instability: clamp(0.45*((temp+10)/55)+0.35*((lapse-4)/6)+0.20*(1-spread/45),0,1),
+      moisture: clamp((dewpoint+15)/45,0,1),
+      shear: clamp(shearKt/100,0,1),
+      surfaceWind: clamp(wind/60,0,1)
+    };
+  }
 
   function clamp(value, min, max) {
     return Math.max(min, Math.min(max, value));
@@ -183,14 +198,15 @@
     const t = simTime;
 
     // Movimento contínuo da tempestade.
-    const shearFactor = (shear - 5) / 30;
-    const moistureFactor = (moisture - 25) / 70;
-    const instabilityFactor = (instability - 500) / 3000;
-    const boundaryFactor = boundary / 100;
-    const organization = clamp(0.25 + 0.48 * shearFactor + 0.27 * moistureFactor, 0.15, 1.0);
-    const stormStrength = clamp(0.28 + 0.42 * instabilityFactor + 0.20 * moistureFactor + 0.10 * boundaryFactor, 0.2, 1.15);
-    const driftX = 0.025 * Math.sin(t * 0.10) + shearFactor * 0.055;
-    const driftY = 0.022 * Math.sin(t * 0.07 + 1.2) - shearFactor * 0.018;
+    const env = deriveEnvironment();
+    const shearFactor = env.shear;
+    const moistureFactor = env.moisture;
+    const instabilityFactor = env.instability;
+    const boundaryFactor = env.surfaceWind;
+    const organization = clamp(0.18 + 0.58*shearFactor + 0.24*moistureFactor, 0.12, 1.0);
+    const stormStrength = clamp(0.22 + 0.48*instabilityFactor + 0.22*moistureFactor + 0.08*boundaryFactor, 0.12, 1.08);
+    const driftX = 0.025*Math.sin(t*0.10) + shearFactor*0.035 + env.surfaceWind*0.018;
+    const driftY = 0.022*Math.sin(t*0.07+1.2) - shearFactor*0.018;
 
     const cx = 0.57 + driftX;
     const cy = 0.48 + driftY;
@@ -427,13 +443,15 @@
 
   function drawStormMotion() {
     if (!motionToggle.checked) return;
-    const cx = width * (0.57 + 0.045 * Math.sin(simTime * 0.10));
-    const cy = height * (0.48 + 0.035 * Math.sin(simTime * 0.07 + 1.2));
+    const env = deriveEnvironment();
+    const cx = width * (0.57 + 0.025*Math.sin(simTime*0.10) + env.shear*0.035 + env.surfaceWind*0.018);
+    const cy = height * (0.48 + 0.022*Math.sin(simTime*0.07+1.2) - env.shear*0.018);
     stormTrack.push({x:cx,y:cy});
     if (stormTrack.length > 18) stormTrack.shift();
     ctx.save(); ctx.strokeStyle = "#ffffffcc"; ctx.fillStyle = "#ffffff"; ctx.lineWidth = Math.max(1.5,dpr);
     if (stormTrack.length > 1) { ctx.beginPath(); stormTrack.forEach((p,i)=> i ? ctx.lineTo(p.x,p.y) : ctx.moveTo(p.x,p.y)); ctx.stroke(); }
-    const dx = width * 0.025, dy = height * 0.012;
+    const env = deriveEnvironment();
+    const dx = width * (0.012 + env.surfaceWind*0.025), dy = height * (0.012 - env.shear*0.006);
     ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx+dx,cy+dy); ctx.lineTo(cx+dx-width*0.006,cy+dy-height*0.012); ctx.moveTo(cx+dx,cy+dy); ctx.lineTo(cx+dx-width*0.014,cy+dy-height*0.001); ctx.stroke();
     ctx.beginPath(); ctx.arc(cx,cy,3*dpr,0,Math.PI*2); ctx.fill(); ctx.restore();
   }
@@ -517,18 +535,12 @@
   }
 
   function updateControls() {
-    instability = Number(instabilityInput.value);
-    shear = Number(shearInput.value);
-    moisture = Number(moistureInput.value);
-    boundary = Number(boundaryInput.value);
     speed = Number(speedInput.value);
-
-    instabilityValue.textContent = `${instability} J/kg`;
-    shearValue.textContent = `${shear} m/s`;
-    moistureValue.textContent = `${moisture}%`;
-    boundaryValue.textContent = `${boundary}%`;
-    speedValue.textContent = `${speed.toFixed(1)}×`;
-
+    if (speedValue) speedValue.textContent = `${speed.toFixed(1)}×`;
+    if (environmentStatus) {
+      const e = environment;
+      environmentStatus.textContent = `Tela inicial: T ${e.temp}°C · Td ${e.dwpt}°C · vento ${e.wind} kt · lapse ${Number(e.lapse).toFixed(1)}°C/km · SRW ${e.srw} kt`;
+    }
     runState.textContent = running ? "Executando" : "Pausado";
     playButton.textContent = running ? "Ⅱ Pausar" : "▶ Continuar";
   }
@@ -548,12 +560,15 @@
     render();
   });
 
-  [instabilityInput, shearInput, moistureInput, boundaryInput].forEach((input) => input.addEventListener("input", () => {
+  speedInput.addEventListener("input", updateControls);
+  window.addEventListener("storage", event => {
+    if (event.key !== "modelsSandboxEnvironment") return;
+    environment = readEnvironment();
+    stormTrack.length = 0;
     updateControls();
     render();
-  }));
-
-  speedInput.addEventListener("input", updateControls);
+  });
+  if (backToEnvironment) backToEnvironment.addEventListener("click", () => { window.location.href = "index.html"; });
   productSelect.addEventListener("change", () => { product = productSelect.value; buildLegend(); render(); });
   motionToggle.addEventListener("change", render);
 
