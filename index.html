@@ -202,8 +202,28 @@
                 <!-- ABA 3: EXCESSIVE RAINFALL -->
                 <section id="rainfall-tab" class="tab-section">
                     <h3>Previsão de Chuva Excessiva e Alagamentos</h3>
-                    <div id="rainfall-map">
-                        <p class="placeholder-text">[ Mapa interativo para polígonos de precipitação extrema ]</p>
+                    <p>Desenhe áreas de precipitação excessiva no mapa. Este módulo é uma ferramenta de cenário manual; não representa um produto oficial do WPC nem dados de chuva observados.</p>
+                    <div id="rainfall-toolbar" class="rainfall-toolbar">
+                        <label for="rainfall-category">Categoria:</label>
+                        <select id="rainfall-category">
+                            <option value="marginal">Marginal</option>
+                            <option value="slight">Slight</option>
+                            <option value="moderate">Moderate</option>
+                            <option value="high">High</option>
+                        </select>
+                        <button type="button" id="rainfall-draw">✏️ Desenhar área</button>
+                        <button type="button" id="rainfall-finish" disabled>✓ Finalizar polígono</button>
+                        <button type="button" id="rainfall-cancel" disabled>Cancelar</button>
+                        <button type="button" id="rainfall-clear">🗑️ Limpar áreas</button>
+                        <span id="rainfall-status" role="status">Mapa pronto para iniciar.</span>
+                    </div>
+                    <div id="rainfall-map" style="height:520px;width:100%;border:1px solid #2d2d3d;border-radius:8px;overflow:hidden;"></div>
+                    <div id="rainfall-legend" class="rainfall-legend">
+                        <strong>Legenda de cenário — não é previsão oficial</strong>
+                        <span><i style="background:#b8d9a8"></i> Marginal</span>
+                        <span><i style="background:#f5e45b"></i> Slight</span>
+                        <span><i style="background:#e99a45"></i> Moderate</span>
+                        <span><i style="background:#df4545"></i> High</span>
                     </div>
                 </section>
 
@@ -233,5 +253,6 @@
     <script src="js/main.js"></script>
     <script src="js/skewt.js"></script>
     <script src="js/outlook.js"></script>
+    <script src="js/rainfall.js"></script>
 </body>
 </html>
