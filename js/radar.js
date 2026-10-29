@@ -399,6 +399,14 @@
     ctx.restore();
   }
 
+  function drawMapLabels() {
+    ctx.save();
+    ctx.fillStyle = "rgba(230, 239, 247, 0.88)";
+    ctx.font = `${Math.max(10, 11 * dpr)}px sans-serif`;
+    [["SPRINGFIELD",0.18,0.29],["RIVER CITY",0.72,0.23],["OAK RIDGE",0.77,0.76]].forEach(([name,x,y]) => { ctx.fillText(name, width*x, height*y); });
+    ctx.restore();
+  }
+
   function drawStormMotion() {
     if (!motionToggle.checked) return;
     const cx = width * (0.57 + 0.045 * Math.sin(simTime * 0.10));
