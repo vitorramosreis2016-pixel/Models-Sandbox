@@ -161,6 +161,11 @@ input {
   display: block;
   width: 100%;
   height: 100%;
+
+  /* Mantém os bins do radar nítidos ao ampliar o canvas */
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  -ms-interpolation-mode: nearest-neighbor;
 }
 
 .map-label {
