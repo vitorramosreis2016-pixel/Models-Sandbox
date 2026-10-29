@@ -15,11 +15,18 @@
 
   const playButton = $("playButton");
   const resetButton = $("resetButton");
-  const intensityInput = $("intensity");
   const speedInput = $("speed");
+  const instabilityInput = $("instability");
+  const shearInput = $("shear");
+  const moistureInput = $("moisture");
+  const boundaryInput = $("boundary");
 
-  const intensityValue = $("intensityValue");
   const speedValue = $("speedValue");
+  const instabilityValue = $("instabilityValue");
+  const shearValue = $("shearValue");
+  const moistureValue = $("moistureValue");
+  const boundaryValue = $("boundaryValue");
+  const legendUnit = $("legendUnit");
   const maxDbz = $("maxDbz");
   const echoArea = $("echoArea");
   const frameCount = $("frameCount");
@@ -38,7 +45,7 @@
 
   // Resolução interna do campo sintético.
   // A imagem é ampliada no Canvas para manter a renderização leve.
-  const GRID = 512;
+  const GRID = 320;
   const MAX_DBZ = 75;
   const PIXELS = GRID * GRID;
 
@@ -73,7 +80,10 @@
   let height = 0;
   let dpr = 1;
 
-  let intensity = Number(intensityInput.value);
+  let instability = Number(instabilityInput.value);
+  let shear = Number(shearInput.value);
+  let moisture = Number(moistureInput.value);
+  let boundary = Number(boundaryInput.value);
   let speed = Number(speedInput.value);
 
   function clamp(value, min, max) {
@@ -162,6 +172,7 @@
     legendName.textContent = info.legend;
     productTitle.innerHTML = `${info.title} <span class="unit">${info.unit}</span>`;
     infoProductTitle.textContent = info.title;
+    legendUnit.textContent = info.unit;
   }
 
   // Tempestade inteiramente sintética:
@@ -172,8 +183,14 @@
     const t = simTime;
 
     // Movimento contínuo da tempestade.
-    const driftX = 0.045 * Math.sin(t * 0.10);
-    const driftY = 0.035 * Math.sin(t * 0.07 + 1.2);
+    const shearFactor = (shear - 5) / 30;
+    const moistureFactor = (moisture - 25) / 70;
+    const instabilityFactor = (instability - 500) / 3000;
+    const boundaryFactor = boundary / 100;
+    const organization = clamp(0.25 + 0.48 * shearFactor + 0.27 * moistureFactor, 0.15, 1.0);
+    const stormStrength = clamp(0.28 + 0.42 * instabilityFactor + 0.20 * moistureFactor + 0.10 * boundaryFactor, 0.2, 1.15);
+    const driftX = 0.025 * Math.sin(t * 0.10) + shearFactor * 0.055;
+    const driftY = 0.022 * Math.sin(t * 0.07 + 1.2) - shearFactor * 0.018;
 
     const cx = 0.57 + driftX;
     const cy = 0.48 + driftY;
@@ -183,18 +200,18 @@
       {
         x: cx,
         y: cy,
-        sx: 0.073,
-        sy: 0.061,
+        sx: 0.055 + moistureFactor * 0.025,
+        sy: 0.060 - organization * 0.018,
         amp: 55,
-        angle: -0.48
+        angle: -0.25 - shearFactor * 0.55
       },
       {
         x: cx - 0.085,
         y: cy + 0.070,
-        sx: 0.100,
-        sy: 0.058,
+        sx: 0.075 + (1 - organization) * 0.055,
+        sy: 0.035 + moistureFactor * 0.035,
         amp: 28,
-        angle: 0.65
+        angle: 0.25 + shearFactor * 0.7
       },
       {
         x: cx + 0.105,
@@ -215,7 +232,7 @@
     ];
 
     const wobble = 1 + 0.055 * Math.sin(t * 0.65);
-    const coreStrength = intensity * wobble;
+    const coreStrength = stormStrength * wobble;
 
     for (let py = 0; py < GRID; py++) {
       const y = py / (GRID - 1);
@@ -229,7 +246,7 @@
           const pulse =
             cell.amp === 55
               ? coreStrength
-              : intensity * (0.96 + 0.04 * Math.sin(t * 0.3));
+              : stormStrength * (0.96 + 0.04 * Math.sin(t * 0.3));
 
           dbz += cell.amp * pulse * gaussian(
             x, y,
@@ -266,7 +283,7 @@
           20 *
           Math.exp(-0.5 * (arcDistance / arcWidth) ** 2) *
           angleMask *
-          intensity;
+          stormStrength * organization;
 
         dbz += hook;
 
@@ -275,7 +292,8 @@
           1.3 * Math.sin(x * 83 + y * 31) *
           Math.sin(y * 61 - x * 22);
 
-        dbz += texture * smoothstep(8, 25, dbz);
+        const boundaryLift = boundaryFactor * 9 * gaussian(x, y, 0.28 + 0.05 * Math.sin(t * 0.04), 0.58, 0.20, 0.035, -0.2);
+        dbz += texture * smoothstep(8, 25, dbz) + boundaryLift * moistureFactor;
 
         const index = py * GRID + px;
         field[index] = clamp(dbz, 0, MAX_DBZ);
@@ -499,10 +517,16 @@
   }
 
   function updateControls() {
-    intensity = Number(intensityInput.value);
+    instability = Number(instabilityInput.value);
+    shear = Number(shearInput.value);
+    moisture = Number(moistureInput.value);
+    boundary = Number(boundaryInput.value);
     speed = Number(speedInput.value);
 
-    intensityValue.textContent = `${intensity.toFixed(2)}×`;
+    instabilityValue.textContent = `${instability} J/kg`;
+    shearValue.textContent = `${shear} m/s`;
+    moistureValue.textContent = `${moisture}%`;
+    boundaryValue.textContent = `${boundary}%`;
     speedValue.textContent = `${speed.toFixed(1)}×`;
 
     runState.textContent = running ? "Executando" : "Pausado";
@@ -517,16 +541,17 @@
   resetButton.addEventListener("click", () => {
     simTime = 0;
     frames = 0;
+    stormTrack.length = 0;
     lastTimestamp = 0;
 
     updateControls();
     render();
   });
 
-  intensityInput.addEventListener("input", () => {
+  [instabilityInput, shearInput, moistureInput, boundaryInput].forEach((input) => input.addEventListener("input", () => {
     updateControls();
     render();
-  });
+  }));
 
   speedInput.addEventListener("input", updateControls);
   productSelect.addEventListener("change", () => { product = productSelect.value; buildLegend(); render(); });
