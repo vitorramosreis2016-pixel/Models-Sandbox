@@ -29,12 +29,12 @@
       <div class="panel-heading">
         <div>
           <p class="eyebrow">PRODUTO METEOROLÓGICO</p>
-          <h2>Super-Res Reflectivity <span class="unit">dBZ</span></h2>
+          <h2 id="productTitle">Super-Res Reflectivity <span class="unit">dBZ</span></h2>
         </div>
         <span class="pill">SINTÉTICO</span>
       </div>
 
-      <div class="canvas-wrap" id="canvasWrap">
+      <div class="product-toolbar" aria-label="Seleção de produto radar">\n        <label for="productSelect">Produto</label>\n        <select id="productSelect">\n          <option value="reflectivity">Reflectivity (dBZ)</option>\n          <option value="velocity">Velocity (kt)</option>\n          <option value="srv">Storm Relative Velocity (kt)</option>\n          <option value="spectrum">Spectrum Width (kt)</option>\n          <option value="vil">VIL (kg/m²)</option>\n          <option value="tops">Echo Tops (kft)</option>\n          <option value="stormtotal">Storm Total (in)</option>\n          <option value="accumulation">Accumulation (in)</option>\n        </select>\n        <label class="toggle-label"><input id="motionToggle" type="checkbox" checked> Vetores e trilha</label>\n        <span class="vcp-tag">VCP SIMULADO · 212</span>\n      </div>\n      <div class="canvas-wrap" id="canvasWrap">
         <canvas id="radarCanvas"
           aria-label="Radar meteorológico sintético de refletividade">
         </canvas>
@@ -48,7 +48,7 @@
 
       <div class="legend-section">
         <div class="legend-title">
-          <span>REFLECTIVIDADE</span>
+          <span id="legendName">REFLECTIVIDADE</span>
           <span>dBZ</span>
         </div>
         <div id="legend" class="legend-bar"></div>
@@ -115,7 +115,7 @@
 
       <section class="control-card info-card">
         <p class="eyebrow">SOBRE ESTE PRODUTO</p>
-        <h2>Reflectivity</h2>
+        <h2 id="infoProductTitle">Reflectivity</h2>
         <p>
           Visualização inspirada no estilo Super-Res NEXRAD, com grade de maior
           resolução e ecos sintéticos em evolução temporal. Não utiliza
