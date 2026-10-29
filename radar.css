@@ -149,12 +149,12 @@ input {
   position: relative;
   overflow: hidden;
   width: 100%;
-  aspect-ratio: 1 / 1;
-  min-height: 250px;
+  aspect-ratio: 16 / 9;
+  min-height: 300px;
   max-height: 850px;
   border: 1px solid #273b4e;
   border-radius: 8px;
-  background: #080f18;
+  background: #050608;
 }
 
 #radarCanvas {
@@ -429,6 +429,7 @@ input[type="range"] {
   }
 
   .canvas-wrap {
+    aspect-ratio: 4 / 3;
     min-height: 220px;
   }
 
