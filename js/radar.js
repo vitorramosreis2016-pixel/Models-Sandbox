@@ -472,6 +472,7 @@
     generateField();
     drawRadarBackground();
     drawField();
+    drawMapLabels();
 
     drawStormMotion();
 
