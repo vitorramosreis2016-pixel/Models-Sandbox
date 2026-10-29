@@ -31,7 +31,7 @@
 
   // Resolução interna do campo sintético.
   // A imagem é ampliada no Canvas para manter a renderização leve.
-  const GRID = 260;
+  const GRID = 512;
   const MAX_DBZ = 75;
   const PIXELS = GRID * GRID;
 
@@ -262,14 +262,14 @@
   }
 
   function drawRadarBackground() {
-    ctx.fillStyle = "#080f18";
+    ctx.fillStyle = "#050608";
     ctx.fillRect(0, 0, width, height);
 
     const cx = width / 2;
     const cy = height / 2;
     const radius = Math.min(width, height) * 0.455;
 
-    // Grade cartográfica simplificada.
+    // Grade cartográfica esquemática sobre fundo escuro.
     ctx.save();
     ctx.strokeStyle = "rgba(126, 156, 184, 0.17)";
     ctx.lineWidth = Math.max(0.7, dpr * 0.65);
@@ -288,6 +288,22 @@
       ctx.lineTo(cx + radius, y);
       ctx.stroke();
     }
+
+    // Limites cartográficos esquemáticos, não fronteiras geográficas exatas.
+    ctx.strokeStyle = "rgba(210, 210, 210, 0.28)";
+    ctx.lineWidth = Math.max(0.8, dpr * 0.8);
+    ctx.beginPath();
+    ctx.moveTo(0, cy - radius * 0.25);
+    ctx.lineTo(width * 0.34, cy - radius * 0.25);
+    ctx.lineTo(width * 0.34, cy + radius * 0.55);
+    ctx.lineTo(width * 0.62, cy + radius * 0.55);
+    ctx.lineTo(width * 0.62, height);
+    ctx.moveTo(width * 0.72, 0);
+    ctx.lineTo(width * 0.72, cy - radius * 0.1);
+    ctx.lineTo(width, cy - radius * 0.1);
+    ctx.moveTo(width * 0.12, cy - radius);
+    ctx.lineTo(width * 0.12, height);
+    ctx.stroke();
 
     // Anéis de alcance esquemáticos.
     for (let i = 1; i <= 4; i++) {
@@ -330,28 +346,12 @@
 
     tempCtx.putImageData(image, 0, 0);
 
-    // Recorta o campo em uma área quadrada.
-    const side = Math.min(width, height) * 0.91;
-    const left = (width - side) / 2;
-    const top = (height - side) / 2;
-
+    // Renderização retangular tipo produto radar Super-Res:
+    // grade de maior resolução, sem limitar os ecos a um círculo decorativo.
+    // O campo continua sendo sintético, não um mosaico de dados NEXRAD reais.
     ctx.save();
-
-    // Os ecos ficam limitados ao alcance circular.
-    ctx.beginPath();
-    ctx.arc(
-      width / 2,
-      height / 2,
-      side / 2,
-      0,
-      Math.PI * 2
-    );
-    ctx.clip();
-
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(tempCanvas, left, top, side, side);
-
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(tempCanvas, 0, 0, width, height);
     ctx.restore();
   }
 
