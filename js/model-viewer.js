@@ -63,7 +63,7 @@
     if(!map)return;
     const token=++requestToken,modelId=$("nwp-model").value,model=MODELS[modelId],field=$("nwp-field").value,lead=Number($("nwp-lead").value),f=FIELDS[field];
     const b=map.getBounds(),south=b.getSouth(),north=b.getNorth(),west=b.getWest(),east=b.getEast();
-    const n=10,coords=[];
+    const n=8,coords=[];
     for(let y=0;y<n;y++)for(let x=0;x<n;x++)coords.push({lat:south+(y+.5)*(north-south)/n,lon:west+(x+.5)*(east-west)/n});
     const btn=$("nwp-query");
     if(model.domain && coords.some(p=>p.lat<model.domain.south||p.lat>model.domain.north||p.lon<model.domain.west||p.lon>model.domain.east)){
@@ -75,9 +75,9 @@
     }
     btn.disabled=true;status("Consultando "+model.name+" em "+coords.length+" pontos…");
     try{
-      const params=new URLSearchParams({latitude:coords.map(p=>p.lat.toFixed(3)).join(","),longitude:coords.map(p=>p.lon.toFixed(3)).join(","),hourly:field,models:modelId,forecast_days:"7",timezone:"UTC"});
+      const params=new URLSearchParams({latitude:coords.map(p=>p.lat.toFixed(3)).join(","),longitude:coords.map(p=>p.lon.toFixed(3)).join(","),hourly:field,models:modelId,forecast_days:"3",timezone:"UTC"});
       const response=await fetch("https://api.open-meteo.com/v1/forecast?"+params);
-      const payload=await response.json();if(!response.ok)throw new Error(payload.reason||payload.error||"HTTP "+response.status);
+      let payload;const raw=await response.text();try{payload=JSON.parse(raw);}catch{throw new Error("Resposta inválida da API (HTTP "+response.status+").");}if(!response.ok)throw new Error((payload.reason||payload.error||"HTTP "+response.status)+" [HTTP "+response.status+"]");
       const results=Array.isArray(payload)?payload:[payload];
       if(results.length!==coords.length)throw new Error("A API não retornou todos os pontos da grade.");
       const times=results[0].hourly?.time||[];
@@ -91,7 +91,7 @@
       status(model.name+" · campo interpolado a partir de "+coords.length+" amostras · previsão aproximada F"+String(lead).padStart(3,"0")+".");
       $("nwp-value").textContent=results.length+" células";
       $("nwp-meta").textContent="Modelo: "+model.name+" | Cobertura declarada: "+model.coverage+" | Validade: "+(times[ti]||"—")+" UTC. Cada célula usa um valor retornado para aquele modelo; as cores apenas representam os valores.";
-    }catch(e){if(token===requestToken)status("Falha ao obter a grade: "+e.message);}
+    }catch(e){console.error("[Models-Sandbox] Falha na grade",{model:modelId,field,coordinates:coords.length,bounds:{south,north,west,east},error:e});if(token===requestToken)status("Falha ao obter a grade ("+model.name+" / "+field+"): "+e.message+" Confira o console para detalhes.");}
     finally{if(token===requestToken)btn.disabled=false;}
   }
   document.addEventListener("DOMContentLoaded",()=>{
