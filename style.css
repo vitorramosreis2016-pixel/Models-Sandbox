@@ -434,3 +434,8 @@ header p {
 /* Na tela principal, prioriza o mapa; controles de sondagem ficam nas ferramentas secundárias. */
 .main-container:has(#models-tab.active) .sidebar{display:none}
 .main-container:has(#models-tab.active) .content-area{width:100%;min-width:0}
+
+.nwp-legend{margin-top:22px;padding-top:12px;border-top:1px solid #334155;color:#cbd5e1;font-size:.78rem}
+.nwp-legend-scale{display:flex;height:12px;margin-top:8px;border-radius:3px;overflow:hidden}
+.nwp-legend-scale i{display:block;flex:1}
+.nwp-legend-labels{display:flex;justify-content:space-between;color:#94a3b8;margin-top:4px}
