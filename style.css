@@ -430,3 +430,7 @@ header p {
 #nwp-value{font-size:1.8rem;font-weight:800;color:#f8fafc;margin:18px 0 8px;overflow-wrap:anywhere}
 #nwp-meta{color:#94a3b8;font-size:.8rem;line-height:1.6;overflow-wrap:anywhere}
 @media(max-width:850px){#nwp-layout{grid-template-columns:1fr}#nwp-map{height:440px}#nwp-readout{min-height:150px}}
+
+/* Na tela principal, prioriza o mapa; controles de sondagem ficam nas ferramentas secundárias. */
+.main-container:has(#models-tab.active) .sidebar{display:none}
+.main-container:has(#models-tab.active) .content-area{width:100%;min-width:0}
