@@ -415,3 +415,18 @@ header p {
   #rainfall-map { height: 420px !important; }
   .rainfall-toolbar button, .rainfall-toolbar select { flex: 1 1 130px; }
 }
+/* Explorador de modelos numéricos */
+.models-intro,.nwp-disclaimer{color:#94a3b8;font-size:.88rem;margin:0 0 12px;line-height:1.5}
+#nwp-toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:end;background:#161622;border:1px solid #2d2d3d;border-radius:8px;padding:12px;margin-bottom:12px}
+#nwp-toolbar label{display:flex;flex-direction:column;gap:5px;color:#cbd5e1;font-size:.78rem;font-weight:700;flex:1 1 155px}
+#nwp-toolbar select,#nwp-toolbar button{min-width:0;padding:9px 10px;background:#202033;color:#e2e8f0;border:1px solid #3b3b54;border-radius:6px;font-size:.85rem}
+#nwp-toolbar button{cursor:pointer;background:#075985;border-color:#0ea5e9;font-weight:700}
+#nwp-toolbar button:disabled{opacity:.55;cursor:wait}
+#nwp-layout{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:12px;min-height:560px}
+#nwp-map{height:560px;min-width:0;border:1px solid #334155;border-radius:8px;z-index:1}
+#nwp-readout{background:#161622;border:1px solid #2d2d3d;border-radius:8px;padding:14px;min-width:0}
+#nwp-readout h4{color:#38bdf8;margin-bottom:10px}
+#nwp-status{color:#94a3b8;font-size:.85rem;line-height:1.5}
+#nwp-value{font-size:1.8rem;font-weight:800;color:#f8fafc;margin:18px 0 8px;overflow-wrap:anywhere}
+#nwp-meta{color:#94a3b8;font-size:.8rem;line-height:1.6;overflow-wrap:anywhere}
+@media(max-width:850px){#nwp-layout{grid-template-columns:1fr}#nwp-map{height:440px}#nwp-readout{min-height:150px}}
