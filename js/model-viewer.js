@@ -7,7 +7,7 @@
     ecmwf_ifs025:{name:"ECMWF IFS",coverage:"Global"},
     icon_global:{name:"ICON Global",coverage:"Global"},
     ukmo_global_deterministic_10km:{name:"UK Met Office Global",coverage:"Global"},
-    gfs_hrrr:{name:"HRRR",coverage:"CONUS"}
+    gfs_hrrr:{name:"HRRR",coverage:"CONUS",domain:{south:21,north:53.5,west:-134,east:-60}}
   };
   const FIELDS={
     pressure_msl:{unit:"hPa",label:"Pressão ao nível do mar",min:970,max:1040,colors:["#542788","#8073ac","#b2abd2","#d8daeb","#f7f7f7","#fddbc7","#ef8a62","#b2182b"]},
@@ -63,9 +63,17 @@
     if(!map)return;
     const token=++requestToken,modelId=$("nwp-model").value,model=MODELS[modelId],field=$("nwp-field").value,lead=Number($("nwp-lead").value),f=FIELDS[field];
     const b=map.getBounds(),south=b.getSouth(),north=b.getNorth(),west=b.getWest(),east=b.getEast();
-    const n=8,coords=[];
+    const n=10,coords=[];
     for(let y=0;y<n;y++)for(let x=0;x<n;x++)coords.push({lat:south+(y+.5)*(north-south)/n,lon:west+(x+.5)*(east-west)/n});
-    const btn=$("nwp-query");btn.disabled=true;status("Baixando grade de "+model.name+" ("+coords.length+" células)…");
+    const btn=$("nwp-query");
+    if(model.domain && coords.some(p=>p.lat<model.domain.south||p.lat>model.domain.north||p.lon<model.domain.west||p.lon>model.domain.east)){
+      layer.clearLayers();
+      status("HRRR indisponível nesta área. Seu domínio é limitado aos Estados Unidos continentais (CONUS). Selecione um modelo global para esta região.");
+      $("nwp-value").textContent="Fora do domínio";
+      $("nwp-meta").textContent="O HRRR não cobre o oceano Índico nem regiões fora do CONUS.";
+      return;
+    }
+    btn.disabled=true;status("Consultando "+model.name+" em "+coords.length+" pontos…");
     try{
       const params=new URLSearchParams({latitude:coords.map(p=>p.lat.toFixed(3)).join(","),longitude:coords.map(p=>p.lon.toFixed(3)).join(","),hourly:field,models:modelId,forecast_days:"7",timezone:"UTC"});
       const response=await fetch("https://api.open-meteo.com/v1/forecast?"+params);
@@ -80,7 +88,7 @@
       const values=results.map(r=>r.hourly?.[field]?.[ti]??null);
       drawSmoothField(values,n,f,{south,north,west,east}).addTo(layer);
       addLegend(f);
-      status(model.name+" · campo interpolado a partir de "+coords.length+" pontos · previsão aproximada F"+String(lead).padStart(3,"0")+".");
+      status(model.name+" · campo interpolado a partir de "+coords.length+" amostras · previsão aproximada F"+String(lead).padStart(3,"0")+".");
       $("nwp-value").textContent=results.length+" células";
       $("nwp-meta").textContent="Modelo: "+model.name+" | Cobertura declarada: "+model.coverage+" | Validade: "+(times[ti]||"—")+" UTC. Cada célula usa um valor retornado para aquele modelo; as cores apenas representam os valores.";
     }catch(e){if(token===requestToken)status("Falha ao obter a grade: "+e.message);}
