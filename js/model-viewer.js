@@ -21,7 +21,25 @@
   };
   let map,layer=L.layerGroup(),selected=null,requestToken=0;
   function status(s){$("nwp-status").textContent=s;}
-  function colorFor(v,f){if(v===null||!Number.isFinite(Number(v)))return null;const p=Math.max(0,Math.min(1,(Number(v)-f.min)/(f.max-f.min)));return f.colors[Math.min(f.colors.length-1,Math.floor(p*f.colors.length))];}
+  function hexRgb(hex){const n=parseInt(hex.slice(1),16);return [(n>>16)&255,(n>>8)&255,n&255];}
+  function smoothColor(value,f){
+    const p=Math.max(0,Math.min(1,(value-f.min)/(f.max-f.min)))*(f.colors.length-1);
+    const i=Math.floor(p),t=p-i,a=hexRgb(f.colors[i]),b=hexRgb(f.colors[Math.min(i+1,f.colors.length-1)]);
+    return a.map((v,k)=>Math.round(v+(b[k]-v)*t));
+  }
+  function drawSmoothField(values,n,f,bounds){
+    const size=320,canvas=document.createElement("canvas");canvas.width=size;canvas.height=size;
+    const ctx=canvas.getContext("2d"),img=ctx.createImageData(size,size);
+    for(let py=0;py<size;py++)for(let px=0;px<size;px++){
+      const gx=px/(size-1)*(n-1),gy=py/(size-1)*(n-1),x0=Math.floor(gx),y0=Math.floor(gy),x1=Math.min(n-1,x0+1),y1=Math.min(n-1,y0+1),tx=gx-x0,ty=gy-y0;
+      const at=(x,y)=>values[y*n+x],v00=at(x0,y0),v10=at(x1,y0),v01=at(x0,y1),v11=at(x1,y1);
+      if([v00,v10,v01,v11].some(v=>v===null||v===undefined||!Number.isFinite(Number(v))))continue;
+      const top=Number(v00)*(1-tx)+Number(v10)*tx,bot=Number(v01)*(1-tx)+Number(v11)*tx,v=top*(1-ty)+bot*ty,c=smoothColor(v,f),k=(py*size+px)*4;
+      img.data[k]=c[0];img.data[k+1]=c[1];img.data[k+2]=c[2];img.data[k+3]=220;
+    }
+    ctx.putImageData(img,0,0);
+    return L.imageOverlay(canvas.toDataURL("image/png"),[[bounds.south,bounds.west],[bounds.north,bounds.east]],{opacity:.88,interactive:false});
+  }
   function init(){
     if(! $("nwp-map")||typeof L==="undefined")return;
     map=L.map("nwp-map",{center:[-15,-48],zoom:4,minZoom:2,worldCopyJump:true});
@@ -59,15 +77,10 @@
       times.forEach((t,i)=>{const d=Math.abs(new Date(t+"Z").getTime()-now);if(d<delta){delta=d;ti=i;}});
       if(token!==requestToken)return;
       layer.clearLayers();
-      const dLat=(north-south)/n,dLon=(east-west)/n;
-      results.forEach((r,i)=>{
-        const value=r.hourly?.[field]?.[ti],p=coords[i],color=colorFor(value,f);if(!color)return;
-        L.rectangle([[p.lat-dLat/2,p.lon-dLon/2],[p.lat+dLat/2,p.lon+dLon/2]],{stroke:false,fillColor:color,fillOpacity:.78,interactive:true})
-          .bindPopup(model.name+"<br>"+f.label+": "+Number(value).toFixed(1)+" "+f.unit+"<br>"+(times[ti]||"")+" UTC")
-          .addTo(layer);
-      });
+      const values=results.map(r=>r.hourly?.[field]?.[ti]??null);
+      drawSmoothField(values,n,f,{south,north,west,east}).addTo(layer);
       addLegend(f);
-      status(model.name+" · grade de "+coords.length+" células · previsão aproximada F"+String(lead).padStart(3,"0")+".");
+      status(model.name+" · campo interpolado a partir de "+coords.length+" pontos · previsão aproximada F"+String(lead).padStart(3,"0")+".");
       $("nwp-value").textContent=results.length+" células";
       $("nwp-meta").textContent="Modelo: "+model.name+" | Cobertura declarada: "+model.coverage+" | Validade: "+(times[ti]||"—")+" UTC. Cada célula usa um valor retornado para aquele modelo; as cores apenas representam os valores.";
     }catch(e){if(token===requestToken)status("Falha ao obter a grade: "+e.message);}
