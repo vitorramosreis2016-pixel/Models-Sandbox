@@ -77,5 +77,6 @@
     init();$("nwp-query")?.addEventListener("click",query);
     ["nwp-model","nwp-field","nwp-lead"].forEach(id=>$(id)?.addEventListener("change",()=>{if(map)query();}));
     document.querySelectorAll('.tab-btn[onclick*="models-tab"]').forEach(b=>b.addEventListener("click",()=>setTimeout(()=>map?.invalidateSize(),80)));
+    setTimeout(()=>{if(map){map.invalidateSize();query();}},700);
   });
 })();
