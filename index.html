@@ -72,7 +72,8 @@
             
             <!-- MENU DE ABAS DE NAVEGAÇÃO -->
             <nav class="tabs-menu">
-                <button class="tab-btn active" onclick="switchTab('skewt-tab')">📊 Skew-T / Sounding</button>
+                <button class="tab-btn active" onclick="switchTab('models-tab')">🌎 Modelos NWP</button>
+                <button class="tab-btn" onclick="switchTab('skewt-tab')">📊 Skew-T / Sounding</button>
                 <button class="tab-btn" onclick="switchTab('convective-tab')">⛈️ Convective Outlook</button>
                 <button class="tab-btn" onclick="switchTab('rainfall-tab')">🌧️ Excessive Rainfall</button>
                 <button class="tab-btn" onclick="switchTab('fire-tab')">🔥 Fire / Dry Thunderstorm</button>
@@ -83,7 +84,20 @@
             <div class="tab-content-container">
                 
                 <!-- ABA 1: SKEW-T LOG-P (ESTILO SHARPPY) -->
-<section id="skewt-tab" class="tab-section active">
+<section id="models-tab" class="tab-section active">
+<h3>Explorador de modelos numéricos</h3>
+<p class="models-intro">Escolha um modelo, selecione um campo e clique no mapa para consultar a previsão naquele ponto. Os valores vêm de saídas de previsão disponibilizadas pela API Open-Meteo; não são dados sintéticos do sandbox.</p>
+<div id="nwp-toolbar">
+<label>Modelo<select id="nwp-model"><option value="gfs_global">GFS Global</option><option value="ecmwf_ifs025">ECMWF IFS</option><option value="icon_global">ICON Global</option><option value="ukmo_global_deterministic_10km">UK Met Office Global</option><option value="gfs_hrrr">HRRR (CONUS)</option></select></label>
+<label>Campo<select id="nwp-field"><option value="pressure_msl">Pressão ao nível do mar (hPa)</option><option value="precipitation">Precipitação (mm)</option><option value="temperature_2m">Temperatura a 2 m (°C)</option><option value="dew_point_2m">Ponto de orvalho a 2 m (°C)</option><option value="cape">CAPE (J/kg)</option><option value="convective_inhibition">CIN (J/kg)</option><option value="wind_speed_10m">Vento a 10 m (kt)</option><option value="wind_direction_10m">Direção do vento (°)</option><option value="cloud_cover">Nebulosidade (%)</option></select></label>
+<label>Previsão<select id="nwp-lead"><option value="0">F000 — agora</option><option value="6">F006</option><option value="12">F012</option><option value="18">F018</option><option value="24">F024</option><option value="36">F036</option><option value="48">F048</option><option value="72">F072</option></select></label>
+<button id="nwp-query" type="button">Consultar ponto</button>
+</div>
+<div id="nwp-layout"><div id="nwp-map" aria-label="Mapa interativo para selecionar o ponto da previsão"></div><aside id="nwp-readout"><h4>Consulta do modelo</h4><p id="nwp-status" role="status">Clique no mapa para escolher uma localização.</p><div id="nwp-value">Nenhum ponto selecionado.</div><div id="nwp-meta"></div></aside></div>
+<p class="nwp-disclaimer">Primeira etapa: consulta pontual real por coordenada. A camada raster contínua no estilo Pivotal Weather e a comparação lado a lado entre modelos serão implementadas em seguida. A disponibilidade de cada modelo depende da região e do horário.</p>
+</section>
+
+<section id="skewt-tab" class="tab-section">
     <h3>Painel de Sondagem — estilo SHARPpy (motor próprio)</h3>
     <div style="display: flex; gap: 20px; width: 100%;">
         <!-- O Gráfico Científico -->
@@ -253,6 +267,7 @@
     <script src="js/main.js"></script>
     <script src="js/skewt.js"></script>
     <script src="js/outlook.js"></script>
+    <script src="js/model-viewer.js"></script>
     <script src="js/rainfall.js"></script>
 </body>
 </html>
