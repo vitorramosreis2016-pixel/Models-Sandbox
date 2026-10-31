@@ -86,15 +86,15 @@
                 <!-- ABA 1: SKEW-T LOG-P (ESTILO SHARPPY) -->
 <section id="models-tab" class="tab-section active">
 <h3>Explorador de modelos numéricos</h3>
-<p class="models-intro">Escolha um modelo, selecione um campo e clique no mapa para consultar a previsão naquele ponto. Os valores vêm de saídas de previsão disponibilizadas pela API Open-Meteo; não são dados sintéticos do sandbox.</p>
+<p class="models-intro">Escolha um modelo, selecione um campo e visualize uma grade de previsão sobre toda a área visível. Os valores vêm de saídas de previsão disponibilizadas pela API Open-Meteo; não são dados sintéticos do sandbox.</p>
 <div id="nwp-toolbar">
 <label>Modelo<select id="nwp-model"><option value="gfs_global">GFS Global</option><option value="ecmwf_ifs025">ECMWF IFS</option><option value="icon_global">ICON Global</option><option value="ukmo_global_deterministic_10km">UK Met Office Global</option><option value="gfs_hrrr">HRRR (CONUS)</option></select></label>
 <label>Campo<select id="nwp-field"><option value="pressure_msl">Pressão ao nível do mar (hPa)</option><option value="precipitation">Precipitação (mm)</option><option value="temperature_2m">Temperatura a 2 m (°C)</option><option value="dew_point_2m">Ponto de orvalho a 2 m (°C)</option><option value="cape">CAPE (J/kg)</option><option value="convective_inhibition">CIN (J/kg)</option><option value="wind_speed_10m">Vento a 10 m (kt)</option><option value="wind_direction_10m">Direção do vento (°)</option><option value="cloud_cover">Nebulosidade (%)</option></select></label>
 <label>Previsão<select id="nwp-lead"><option value="0">F000 — agora</option><option value="6">F006</option><option value="12">F012</option><option value="18">F018</option><option value="24">F024</option><option value="36">F036</option><option value="48">F048</option><option value="72">F072</option></select></label>
-<button id="nwp-query" type="button">Consultar ponto</button>
+<button id="nwp-query" type="button">Atualizar mapa</button>
 </div>
-<div id="nwp-layout"><div id="nwp-map" aria-label="Mapa interativo para selecionar o ponto da previsão"></div><aside id="nwp-readout"><h4>Consulta do modelo</h4><p id="nwp-status" role="status">Clique no mapa para escolher uma localização.</p><div id="nwp-value">Nenhum ponto selecionado.</div><div id="nwp-meta"></div></aside></div>
-<p class="nwp-disclaimer">Primeira etapa: consulta pontual real por coordenada. A camada raster contínua no estilo Pivotal Weather e a comparação lado a lado entre modelos serão implementadas em seguida. A disponibilidade de cada modelo depende da região e do horário.</p>
+<div id="nwp-layout"><div id="nwp-map" aria-label="Mapa interativo para selecionar o ponto da previsão"></div><aside id="nwp-readout"><h4>Consulta do modelo</h4><p id="nwp-status" role="status">Ajuste o zoom e a região; depois clique em Atualizar mapa.</p><div id="nwp-value">Nenhum ponto selecionado.</div><div id="nwp-meta"></div></aside></div>
+<p class="nwp-disclaimer">A grade é uma primeira visualização espacial; cada célula usa dados retornados para o modelo selecionado. O clique no mapa serve apenas para inspecionar coordenadas. A próxima etapa será rasterizar e adicionar contornos/isóbaras e comparação lado a lado. A disponibilidade de cada modelo depende da região e do horário.</p>
 </section>
 
 <section id="skewt-tab" class="tab-section">
