@@ -27,11 +27,12 @@
     const i=Math.floor(p),t=p-i,a=hexRgb(f.colors[i]),b=hexRgb(f.colors[Math.min(i+1,f.colors.length-1)]);
     return a.map((v,k)=>Math.round(v+(b[k]-v)*t));
   }
+  function normalizeLongitude(lon){return ((lon+180)%360+360)%360-180;}
   function drawSmoothField(values,n,f,bounds){
     const size=320,canvas=document.createElement("canvas");canvas.width=size;canvas.height=size;
     const ctx=canvas.getContext("2d"),img=ctx.createImageData(size,size);
     for(let py=0;py<size;py++)for(let px=0;px<size;px++){
-      const gx=px/(size-1)*(n-1),gy=py/(size-1)*(n-1),x0=Math.floor(gx),y0=Math.floor(gy),x1=Math.min(n-1,x0+1),y1=Math.min(n-1,y0+1),tx=gx-x0,ty=gy-y0;
+      const gx=px/(size-1)*(n-1),gy=(1-py/(size-1))*(n-1),x0=Math.floor(gx),y0=Math.floor(gy),x1=Math.min(n-1,x0+1),y1=Math.min(n-1,y0+1),tx=gx-x0,ty=gy-y0;
       const at=(x,y)=>values[y*n+x],v00=at(x0,y0),v10=at(x1,y0),v01=at(x0,y1),v11=at(x1,y1);
       if([v00,v10,v01,v11].some(v=>v===null||v===undefined||!Number.isFinite(Number(v))))continue;
       const top=Number(v00)*(1-tx)+Number(v10)*tx,bot=Number(v01)*(1-tx)+Number(v11)*tx,v=top*(1-ty)+bot*ty,c=smoothColor(v,f),k=(py*size+px)*4;
@@ -64,7 +65,7 @@
     const token=++requestToken,modelId=$("nwp-model").value,model=MODELS[modelId],field=$("nwp-field").value,lead=Number($("nwp-lead").value),f=FIELDS[field];
     const b=map.getBounds(),south=b.getSouth(),north=b.getNorth(),west=b.getWest(),east=b.getEast();
     const n=8,coords=[];
-    for(let y=0;y<n;y++)for(let x=0;x<n;x++)coords.push({lat:south+(y+.5)*(north-south)/n,lon:west+(x+.5)*(east-west)/n});
+    for(let y=0;y<n;y++)for(let x=0;x<n;x++)coords.push({lat:south+(y+.5)*(north-south)/n,lon:normalizeLongitude(west+(x+.5)*(east-west)/n)});
     const btn=$("nwp-query");
     if(model.domain && coords.some(p=>p.lat<model.domain.south||p.lat>model.domain.north||p.lon<model.domain.west||p.lon>model.domain.east)){
       layer.clearLayers();
